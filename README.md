@@ -50,7 +50,7 @@ Phiên bản đã ghim: `anthropic 1.13.0`, `fastapi 0.143.0`, `uvicorn 0.54.0`,
 Ba biến: `ANTHROPIC_API_KEY` (khóa nhà cung cấp mô hình), `AI_INTERNAL_KEY` (khóa nội bộ giữa backend và dịch vụ này), `AI_MODEL` (mặc định `claude-haiku-5-5`).
 Chọn một trong hai cách (có cả hai thì `.env` trong thư mục dịch vụ thắng; biến môi trường của tiến trình thắng cả hai):
 
-1. Tệp `.env` cạnh `README.md` (sao từ `.env.example`, đã nằm trong `.gitignore`), hoặc
+1. Tệp `.env` cạnh `README.md` (sao từ `.env.example`, bỏ dấu `#` ở dòng nào bạn điền; đã nằm trong `.gitignore`), hoặc
 2. Tệp `%APPDATA%\DSVHVN\ai-service.env` dùng chung cho mọi bản chạy trên máy (cùng ba dòng `TÊN=giá trị`).
 
 Không đặt `ANTHROPIC_API_KEY` thành biến môi trường người dùng hay hệ thống (sẽ chiếm quyền xác thực của công cụ khác): dịch vụ tự đọc từ tệp và chỉ giữ khóa trong tiến trình.
