@@ -253,3 +253,11 @@ async def test_request_not_mutated(make_client):
     snapshot = copy.deepcopy(req)
     await make_client(FakeLlm(ok(translation_output("en", req)))).post(TR, json=req)
     assert req == snapshot
+
+
+async def test_prompt_tells_the_model_to_translate_the_summary_too(make_client):
+    req = translate_request("ko")
+    llm = FakeLlm(ok(translation_output("ko", req)))
+    await make_client(llm).post(TR, json=req)
+    assert "cũng PHẢI được dịch" in llm.calls[0]["system"]
+    assert "Dịch cả `summary`" in llm.calls[0]["user"] and "kết quả phải có `summary.shortText`" in llm.calls[0]["user"]

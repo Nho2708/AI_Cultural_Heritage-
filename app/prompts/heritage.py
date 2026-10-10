@@ -27,7 +27,7 @@ Quy tắc:
 - Giữ nguyên mọi `id`, `timelineId` (số) trong `timelines`, `events`, `media` như đã gửi; mỗi phần tử gửi vào phải có đúng một phần tử trả về với cùng id.
 - Trường nào là null thì trả null. Trường có chữ thì phải dịch, không để nguyên tiếng nguồn (trừ tên riêng theo bảng thuật ngữ).
 - `content` có thể là Markdown: giữ nguyên cấu trúc (tiêu đề ##, gạch đầu dòng, chữ đậm, xuống dòng, đoạn) và chỉ dịch phần chữ.
-- `summary` (nếu có) là văn bản thuần, không dùng ký hiệu Markdown; giữ ranh giới đoạn (dòng trống) của `detailedText`; `shortText` là một đoạn liền.
+- `summary` (nếu có trong dữ liệu) cũng PHẢI được dịch sang ngôn ngữ đích, cả `shortText` lẫn `detailedText`; tuyệt đối không trả lại nguyên văn tiếng nguồn. Đó là văn bản thuần, không dùng ký hiệu Markdown; giữ ranh giới đoạn (dòng trống) của `detailedText`; `shortText` là một đoạn liền.
 - Tên riêng: dùng ĐÚNG bảng thuật ngữ nếu có mục tương ứng. Tên không có trong bảng: tiếng Anh giữ nguyên chính tả tiếng Việt của tên; tiếng Hàn, Trung, Nhật phiên âm theo thông lệ sang chữ của ngôn ngữ đích. Nhất quán trong toàn bộ bản dịch.
 - Năm trước Công nguyên (TCN) dịch thành "BCE" (en), "기원전" (ko), "公元前" (zh-Hans), "紀元前" (ja). Giữ nguyên các con số và niên đại.
 - Giọng văn: en trung tính, kiểu bách khoa; ko dùng đuôi lịch sự "-습니다"; zh-Hans dùng chữ Hán GIẢN THỂ; ja dùng thể "です・ます". Không dùng ngôn ngữ nào khác ngoài ngôn ngữ đích (trừ tên riêng cần giữ).
@@ -91,7 +91,12 @@ def translate_user(req: TranslateRequest) -> str:
     lines = [
         "<yeu_cau>",
         f"Dịch từ {_LANG_NAMES[source_lang]} sang {_LANG_NAMES[target]}."
-        + (f" Phần `summary` viết bằng {_LANG_NAMES[req.summary_language.value if req.summary_language else 'vi']}." if req.summary else " Không có `summary`."),
+        + (
+            f" Dịch cả `summary` (đang viết bằng {_LANG_NAMES[req.summary_language.value if req.summary_language else 'vi']}) "
+            f"sang {_LANG_NAMES[target]}: kết quả phải có `summary.shortText` và `summary.detailedText` bằng ngôn ngữ đích."
+            if req.summary
+            else " Không có `summary`."
+        ),
         "</yeu_cau>",
     ]
     if terms:
