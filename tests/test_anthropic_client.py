@@ -124,6 +124,15 @@ async def test_anthropic_errors_map_to_backend_status_codes(exc, status, code):
     assert info.value.retryable is True  # backend thử lại 5xx; 503/502/504 đều thuộc nhóm này
 
 
+async def test_exhausted_credit_balance_is_503_billing_not_a_bad_request():
+    exc = anthropic.BadRequestError(
+        "Your credit balance is too low to access the Anthropic API.", response=response_of(400), body=None
+    )
+    with pytest.raises(ModelUnavailable) as info:
+        await call(AnthropicLlm(fake_client(exc)[0], "m"))
+    assert info.value.status == 503 and info.value.code == "llm_billing"
+
+
 async def test_missing_api_key_is_503_without_network():
     with pytest.raises(ModelUnavailable) as info:
         await call(AnthropicLlm(None, "m"))

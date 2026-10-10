@@ -124,7 +124,10 @@ class AnthropicLlm:
             self._log_failure(api, started, f"not_ready_{exc.status_code}")
             raise ModelUnavailable(503, "llm_not_ready", "Dịch vụ AI chưa sẵn sàng (khóa hoặc mô hình chưa dùng được).") from exc
         except anthropic.BadRequestError as exc:
-            self._log_failure(api, started, "bad_request", detail=str(getattr(exc, "message", ""))[:300])
+            detail = str(getattr(exc, "message", ""))
+            self._log_failure(api, started, "bad_request", detail=detail[:300])
+            if "credit balance" in detail.lower():  # hết số dư tài khoản nhà cung cấp: lỗi cấu hình, không phải lỗi yêu cầu
+                raise ModelUnavailable(503, "llm_billing", "Tài khoản nhà cung cấp mô hình hết số dư.") from exc
             raise ModelUnavailable(502, "llm_bad_request", "Yêu cầu gửi mô hình bị từ chối.") from exc
         except anthropic.APIStatusError as exc:
             self._log_failure(api, started, f"status_{exc.status_code}")
