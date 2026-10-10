@@ -165,3 +165,58 @@ async def test_full_pipeline_with_fake_sdk_returns_valid_lesson(make_client):
     r = await make_client(AnthropicLlm(client, "claude-haiku-5-5")).post("/v1/compose-lesson", json=req)
     assert r.status_code == 200 and r.json()["usage"] == {"inputTokens": 100, "outputTokens": 40}
     assert messages.calls[0]["output_config"]["effort"] == "medium"
+
+
+class SequenceMessages:
+    """Trả lần lượt các kết quả; phần tử là ngoại lệ thì ném."""
+
+    def __init__(self, *results):
+        self.results = list(results)
+        self.calls: list[dict] = []
+
+    async def create(self, **kwargs):
+        self.calls.append(kwargs)
+        item = self.results.pop(0)
+        if isinstance(item, Exception):
+            raise item
+        return item
+
+
+async def test_schema_rejection_falls_back_to_plain_json_prompt_and_is_remembered():
+    reject = anthropic.BadRequestError("output_config.format.schema: unsupported keyword", response=response_of(400), body=None)
+    fenced = message([text('```json\n{"a": 1}\n```')])
+    seq = SequenceMessages(reject, fenced, message([text('{"b": 2}')]))
+    llm = AnthropicLlm(SimpleNamespace(messages=seq), "m")
+
+    first = await call(llm, schema={"type": "object", "properties": {"a": {"type": "integer"}}})
+    assert first.data == {"a": 1}
+    assert "format" in seq.calls[0]["output_config"] and "format" not in seq.calls[1]["output_config"]
+    assert "lược đồ JSON sau" in seq.calls[1]["system"][0]["text"] and '"properties"' in seq.calls[1]["system"][0]["text"]
+    assert llm.structured is False
+
+    second = await call(llm)
+    assert second.data == {"b": 2} and "format" not in seq.calls[2]["output_config"]   # nhớ, không thử lại đường có cấu trúc
+
+
+async def test_other_bad_requests_are_not_mistaken_for_schema_problems():
+    seq = SequenceMessages(anthropic.BadRequestError("messages: roles must alternate", response=response_of(400), body=None))
+    llm = AnthropicLlm(SimpleNamespace(messages=seq), "m")
+    with pytest.raises(ModelUnavailable) as info:
+        await call(llm)
+    assert info.value.code == "llm_bad_request" and llm.structured is True and len(seq.calls) == 1
+
+
+async def test_schema_rejected_twice_is_502_not_a_loop():
+    reject = anthropic.BadRequestError("schema is not valid", response=response_of(400), body=None)
+    seq = SequenceMessages(reject, reject)
+    with pytest.raises(ModelUnavailable) as info:
+        await call(AnthropicLlm(SimpleNamespace(messages=seq), "m"))
+    assert info.value.status == 502 and len(seq.calls) == 2
+
+
+def test_from_key_removes_conflicting_auth_token_from_process_env(monkeypatch):
+    import os
+
+    monkeypatch.setenv("ANTHROPIC_AUTH_TOKEN", "x")
+    AnthropicLlm.from_key("khoa-gia", "m")
+    assert "ANTHROPIC_AUTH_TOKEN" not in os.environ

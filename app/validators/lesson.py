@@ -1,6 +1,7 @@
 """Kiểm đầu ra soạn bài học theo khung nội dung của từng cấp (sao quy tắc của backend để backend không phải bỏ phần nào)."""
 from __future__ import annotations
 
+import re
 from datetime import date
 from typing import Any
 
@@ -137,7 +138,8 @@ def validate_compose(data: Any, req: ComposeRequest) -> Outcome:
 
     rank = {SectionKind.STORY: 0, SectionKind.IMAGE: 1, SectionKind.MILESTONE: 2, SectionKind.REFLECTION: 3}
     steps.sort(key=lambda st: (rank[st.kind], st.year if st.kind == SectionKind.MILESTONE and st.year is not None else 0))
-    _check_counts(level, kind_counts, bool(offered_media), problems)
+    has_dates = any(h.timeline for h in req.heritages) or any(re.search(r"\d{3,4}", h.content or "") for h in req.heritages)
+    _check_counts(level, kind_counts, bool(offered_media), has_dates, problems)
 
     if level == 1 and kind_counts.get("STORY") and n:
         story_words = sum(count_words(s.text) for s in steps if s.kind == SectionKind.STORY)
@@ -163,7 +165,7 @@ def validate_compose(data: Any, req: ComposeRequest) -> Outcome:
     return Outcome(value=response, done=True)
 
 
-def _check_counts(level: int, counts: dict[str, int], has_images: bool, problems: list[str]) -> None:
+def _check_counts(level: int, counts: dict[str, int], has_images: bool, has_dates: bool, problems: list[str]) -> None:
     if level == 1:
         stories = counts.get("STORY", 0)
         if not rules.LEVEL1_MIN_STEPS <= stories <= rules.LEVEL1_MAX_STEPS:
@@ -172,8 +174,11 @@ def _check_counts(level: int, counts: dict[str, int], has_images: bool, problems
             problems.append(f"Tối đa {rules.LEVEL1_MAX_IMAGES} phần kind=IMAGE.")
     elif level == 2:
         m = counts.get("MILESTONE", 0)
-        if not rules.LEVEL2_MIN_MILESTONES <= m <= rules.LEVEL2_MAX_MILESTONES:
-            problems.append(f"Cần {rules.LEVEL2_MIN_MILESTONES} đến {rules.LEVEL2_MAX_MILESTONES} mốc kind=MILESTONE, hiện có {m}.")
+        # Khung mong đợi 3 đến 8 mốc, nhưng tư liệu ít niên đại thì chỉ đòi tối thiểu 1 mốc (hoặc không mốc nào khi tư liệu không có niên đại):
+        # backend chỉ cảnh báo số mốc ngoài 3 đến 8 và chỉ chặn xuất bản khi không có mốc nào.
+        minimum = 1 if has_dates else 0
+        if not minimum <= m <= rules.LEVEL2_MAX_MILESTONES:
+            problems.append(f"Cần {minimum if minimum else 0} đến {rules.LEVEL2_MAX_MILESTONES} mốc kind=MILESTONE (mục tiêu {rules.LEVEL2_MIN_MILESTONES} đến {rules.LEVEL2_MAX_MILESTONES} nếu tư liệu đủ), hiện có {m}.")
         images = counts.get("IMAGE", 0)
         if images > rules.LEVEL2_MAX_IMAGES:
             problems.append(f"Tối đa {rules.LEVEL2_MAX_IMAGES} phần kind=IMAGE.")

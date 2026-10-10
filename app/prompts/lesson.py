@@ -28,7 +28,7 @@ CẤP 1 (học sinh lớp 1 đến 5) - bài là một CÂU CHUYỆN kể:
 _LEVEL2 = """
 CẤP 2 (học sinh lớp 6 đến 9) - bài ĐỌC có giải thích:
 - `content`: bài đọc mạch lạc có mở bài, thân bài, kết bài; giải thích nguyên nhân, diễn biến, ý nghĩa; có thể dùng thuật ngữ cơ bản kèm giải nghĩa; giọng giảng giải rõ ràng.
-- `steps`: kind=MILESTONE từ 3 đến 8 mốc theo dòng thời gian của di sản (sắp xếp tăng dần theo năm): `year` là số nguyên (năm trước Công nguyên là số âm, ví dụ 179 TCN là -179), `title` là tên ngắn của mốc, `text` là 1 đến 2 câu mô tả mốc. Nếu mốc tương ứng một sự kiện trong dòng thời gian được cho thì đặt `eventId` của sự kiện đó (và `year` = startYear của sự kiện), nếu không thì eventId = null. Chỉ nêu mốc có trong tư liệu.
+- `steps`: kind=MILESTONE từ 3 đến 8 mốc (ít nhất 1 mốc nếu tư liệu có niên đại; tư liệu không đủ 3 mốc thì chỉ nêu số mốc có thật) theo dòng thời gian của di sản (sắp xếp tăng dần theo năm): `year` là số nguyên (năm trước Công nguyên là số âm, ví dụ 179 TCN là -179), `title` là tên ngắn của mốc, `text` là 1 đến 2 câu mô tả mốc. Nếu mốc tương ứng một sự kiện trong dòng thời gian được cho thì đặt `eventId` của sự kiện đó (và `year` = startYear của sự kiện), nếu không thì eventId = null. Chỉ nêu mốc có trong tư liệu.
 - Thêm 1 đến 2 phần kind=IMAGE (nếu di sản có ảnh): `mediaId` từ danh sách ảnh, `text` là chú thích 1 câu dựa trên chú thích ảnh. Không có ảnh thì không thêm phần IMAGE.
 """
 

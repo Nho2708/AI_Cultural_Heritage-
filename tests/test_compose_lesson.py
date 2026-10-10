@@ -278,3 +278,23 @@ async def test_request_is_not_mutated_and_ids_from_request_are_used(make_client)
     llm = FakeLlm(ok(lesson_output(1, req)))
     await make_client(llm).post(URL, json=req)
     assert req == snapshot
+
+
+async def test_level_two_with_few_dated_facts_accepts_fewer_than_three_milestones(make_client):
+    req = compose_request(2, events=1)
+    out = lesson_output(2, compose_request(2, events=3))
+    out["steps"] = [s for s in out["steps"] if s["kind"] == "IMAGE"] + [
+        {"kind": "MILESTONE", "title": "Mốc", "text": "Sự kiện duy nhất.", "year": 1010, "eventId": None, "mediaId": None, "title_": None}
+    ]
+    r = await make_client(FakeLlm(ok(out))).post(URL, json=req)
+    assert r.status_code == 200, r.text
+    assert len([s for s in r.json()["steps"] if s["kind"] == "MILESTONE"]) == 1
+
+
+async def test_level_two_without_any_dates_may_have_no_milestone(make_client):
+    req = compose_request(2, events=0, content="Một di sản được gìn giữ qua nhiều thế hệ người dân địa phương và là niềm tự hào chung.")
+    out = lesson_output(2, compose_request(2))
+    out["steps"] = [s for s in out["steps"] if s["kind"] == "IMAGE"]
+    r = await make_client(FakeLlm(ok(out))).post(URL, json=req)
+    assert r.status_code == 200, r.text
+    assert not [s for s in r.json()["steps"] if s["kind"] == "MILESTONE"]

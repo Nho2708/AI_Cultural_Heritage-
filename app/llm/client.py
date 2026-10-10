@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import time
 from dataclasses import dataclass
 from typing import Any, Protocol
@@ -66,6 +67,12 @@ class Llm(Protocol):
     ) -> LlmResult: ...
 
 
+def _extract_json(text: str) -> Any:
+    """Lấy đối tượng JSON ngoài cùng khỏi đoạn chữ (bỏ khối mã Markdown nếu mô hình lỡ thêm)."""
+    start, end = text.find("{"), text.rfind("}")
+    return json.loads(text[start : end + 1] if start >= 0 and end > start else text)
+
+
 def _usage_of(response: Any) -> TokenUsage:
     u = getattr(response, "usage", None)
     if u is None:
@@ -85,8 +92,14 @@ class AnthropicLlm:
 
     @classmethod
     def from_key(cls, api_key: str, model: str) -> "AnthropicLlm":
+        # SDK tự đọc ANTHROPIC_AUTH_TOKEN nếu có và gửi cùng khóa API thì nhà cung cấp từ chối: bỏ khỏi môi trường của tiến trình này.
+        os.environ.pop("ANTHROPIC_AUTH_TOKEN", None)
         # max_retries=0: việc thử lại do backend quyết định (tối đa 2 lần), tránh nhân đôi thời gian chờ.
         return cls(anthropic.AsyncAnthropic(api_key=api_key, max_retries=0), model)
+
+    # Đầu ra có cấu trúc (output_config.format) là đường chính. Nếu nhà cung cấp từ chối lược đồ (400 nói về schema/format) thì chuyển
+    # sang chế độ JSON thuần trong prompt cho các lời gọi sau; bộ kiểm đầu ra ở phía trên vẫn bảo đảm kết quả đúng lược đồ riêng.
+    structured = True
 
     async def complete_json(
         self,
@@ -102,37 +115,40 @@ class AnthropicLlm:
         if self._client is None:
             raise ModelUnavailable(503, "llm_not_configured", "Dịch vụ AI chưa được cấu hình khóa mô hình.")
         started = time.perf_counter()
-        try:
-            response = await self._client.messages.create(
-                model=self.model,
-                max_tokens=max_tokens,
-                system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
-                messages=[{"role": "user", "content": user}],
-                output_config={"effort": effort, "format": {"type": "json_schema", "schema": schema}},
-                timeout=timeout,
-            )
-        except anthropic.APITimeoutError as exc:
-            self._log_failure(api, started, "timeout")
-            raise ModelUnavailable(504, "llm_timeout", "Mô hình không trả lời kịp thời gian chờ.") from exc
-        except anthropic.APIConnectionError as exc:
-            self._log_failure(api, started, "connection")
-            raise ModelUnavailable(503, "llm_unreachable", "Không kết nối được nhà cung cấp mô hình.") from exc
-        except anthropic.RateLimitError as exc:
-            self._log_failure(api, started, "rate_limited")
-            raise ModelUnavailable(503, "llm_rate_limited", "Nhà cung cấp mô hình đang giới hạn tần suất.") from exc
-        except (anthropic.AuthenticationError, anthropic.PermissionDeniedError, anthropic.NotFoundError) as exc:
-            self._log_failure(api, started, f"not_ready_{exc.status_code}")
-            raise ModelUnavailable(503, "llm_not_ready", "Dịch vụ AI chưa sẵn sàng (khóa hoặc mô hình chưa dùng được).") from exc
-        except anthropic.BadRequestError as exc:
-            detail = str(getattr(exc, "message", ""))
-            self._log_failure(api, started, "bad_request", detail=detail[:300])
-            if "credit balance" in detail.lower():  # hết số dư tài khoản nhà cung cấp: lỗi cấu hình, không phải lỗi yêu cầu
-                raise ModelUnavailable(503, "llm_billing", "Tài khoản nhà cung cấp mô hình hết số dư.") from exc
-            raise ModelUnavailable(502, "llm_bad_request", "Yêu cầu gửi mô hình bị từ chối.") from exc
-        except anthropic.APIStatusError as exc:
-            self._log_failure(api, started, f"status_{exc.status_code}")
-            status = 503 if exc.status_code == 529 else 502
-            raise ModelUnavailable(status, "llm_unavailable", "Nhà cung cấp mô hình đang lỗi hoặc quá tải.") from exc
+        response = None
+        for _ in range(2):
+            try:
+                response = await self._client.messages.create(**self._params(system, user, schema, effort, max_tokens, timeout))
+                break
+            except anthropic.APITimeoutError as exc:
+                self._log_failure(api, started, "timeout")
+                raise ModelUnavailable(504, "llm_timeout", "Mô hình không trả lời kịp thời gian chờ.") from exc
+            except anthropic.APIConnectionError as exc:
+                self._log_failure(api, started, "connection")
+                raise ModelUnavailable(503, "llm_unreachable", "Không kết nối được nhà cung cấp mô hình.") from exc
+            except anthropic.RateLimitError as exc:
+                self._log_failure(api, started, "rate_limited")
+                raise ModelUnavailable(503, "llm_rate_limited", "Nhà cung cấp mô hình đang giới hạn tần suất.") from exc
+            except (anthropic.AuthenticationError, anthropic.PermissionDeniedError, anthropic.NotFoundError) as exc:
+                self._log_failure(api, started, f"not_ready_{exc.status_code}")
+                raise ModelUnavailable(503, "llm_not_ready", "Dịch vụ AI chưa sẵn sàng (khóa hoặc mô hình chưa dùng được).") from exc
+            except anthropic.BadRequestError as exc:
+                detail = str(getattr(exc, "message", ""))
+                self._log_failure(api, started, "bad_request", detail=detail[:300])
+                lowered = detail.lower()
+                if "credit balance" in lowered:  # hết số dư tài khoản nhà cung cấp: lỗi cấu hình, không phải lỗi yêu cầu
+                    raise ModelUnavailable(503, "llm_billing", "Tài khoản nhà cung cấp mô hình hết số dư.") from exc
+                if self.structured and any(k in lowered for k in ("schema", "output_config", "json_schema", "structured")):
+                    log.warning("Nhà cung cấp từ chối lược đồ JSON: chuyển sang chế độ JSON thuần trong prompt", extra={"api": api})
+                    self.structured = False
+                    continue
+                raise ModelUnavailable(502, "llm_bad_request", "Yêu cầu gửi mô hình bị từ chối.") from exc
+            except anthropic.APIStatusError as exc:
+                self._log_failure(api, started, f"status_{exc.status_code}")
+                status = 503 if exc.status_code == 529 else 502
+                raise ModelUnavailable(status, "llm_unavailable", "Nhà cung cấp mô hình đang lỗi hoặc quá tải.") from exc
+        if response is None:  # hai lần đều bị từ chối lược đồ
+            raise ModelUnavailable(502, "llm_bad_request", "Yêu cầu gửi mô hình bị từ chối.")
 
         usage = _usage_of(response)
         stop = getattr(response, "stop_reason", None)
@@ -150,9 +166,27 @@ class AnthropicLlm:
         if text is None:
             return LlmResult(None, usage, model, parse_error="Mô hình không trả khối chữ nào.", stop_reason=stop)
         try:
-            return LlmResult(json.loads(text), usage, model, stop_reason=stop)
+            return LlmResult(json.loads(text) if self.structured else _extract_json(text), usage, model, stop_reason=stop)
         except json.JSONDecodeError:
             return LlmResult(None, usage, model, parse_error="Đầu ra không phải JSON hợp lệ.", stop_reason=stop)
+
+    def _params(self, system: str, user: str, schema: dict, effort: str, max_tokens: int, timeout: float) -> dict[str, Any]:
+        output_config: dict[str, Any] = {"effort": effort}
+        if self.structured:
+            output_config["format"] = {"type": "json_schema", "schema": schema}
+        else:
+            system = (
+                f"{system}\n\nTrả về DUY NHẤT một đối tượng JSON hợp lệ đúng lược đồ JSON sau, không kèm chữ nào khác, không dùng khối mã:\n"
+                f"{json.dumps(schema, ensure_ascii=False, separators=(',', ':'))}"
+            )
+        return {
+            "model": self.model,
+            "max_tokens": max_tokens,
+            "system": [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
+            "messages": [{"role": "user", "content": user}],
+            "output_config": output_config,
+            "timeout": timeout,
+        }
 
     @staticmethod
     def _log_failure(api: str, started: float, result: str, detail: str | None = None) -> None:
