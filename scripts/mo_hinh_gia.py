@@ -69,9 +69,9 @@ class MoHinhGia:
         if level == 1:
             story = _sentences(tokens, target, 9)
             sentences = [s if s.endswith(".") else s + "." for s in story.split(". ")]
-            k, m = divmod(len(sentences), 5)
+            k, m = divmod(len(sentences), 6)
             steps, pos = [], 0
-            for i in range(5):
+            for i in range(6):
                 take = k + (1 if i < m else 0)
                 steps.append({"kind": "STORY", "title": f"Bước {i + 1}", "text": " ".join(sentences[pos:pos + take]),
                               "mediaId": media[i % len(media)] if media else None, "year": None, "eventId": None})

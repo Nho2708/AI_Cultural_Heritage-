@@ -24,7 +24,7 @@ from mo_hinh_gia import MoHinhGia  # noqa: E402
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--port", type=int, default=8000)
-    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--host", default="localhost")
     args = parser.parse_args()
     app = create_app(load_settings(), MoHinhGia())
     uvicorn.run(app, host=args.host, port=args.port, log_config=None)

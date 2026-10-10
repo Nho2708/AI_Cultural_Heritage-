@@ -105,7 +105,7 @@ def validate_compose(data: Any, req: ComposeRequest) -> Outcome:
         if s.kind == "STORY":
             if not text:
                 problems.append(f"{label} thiếu `text`.")
-            elif count_words(text) > int(rules.LEVEL1_STEP_MAX_WORDS * 1.2):
+            elif count_words(text) > int(rules.LEVEL1_STEP_MAX_WORDS * (1 + rules.WORD_TOLERANCE)):
                 problems.append(f"{label} dài {count_words(text)} từ, tối đa {rules.LEVEL1_STEP_MAX_WORDS} từ.")
             media = s.mediaId
             if offered_media and media not in offered_media:

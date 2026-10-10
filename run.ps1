@@ -2,7 +2,7 @@
 # Khóa đọc từ .env trong thư mục này rồi %APPDATA%\DSVHVN\ai-service.env; script không đọc và không in khóa.
 param(
     [int]$Port = 8000,
-    [string]$BindHost = "127.0.0.1"
+    [string]$BindHost = "localhost"
 )
 
 $ErrorActionPreference = "Stop"
