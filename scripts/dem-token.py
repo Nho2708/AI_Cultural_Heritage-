@@ -17,17 +17,17 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")  # type: ignore[union-attr]
 
-import anthropic  # noqa: E402
+import anthropic
+import du_lieu_mau as mau
 
-from app.config import load_settings  # noqa: E402
-from app.prompts import heritage as heritage_prompts  # noqa: E402
-from app.prompts import lesson as lesson_prompts  # noqa: E402
-from app.prompts import questions as question_prompts  # noqa: E402
-from app.schemas.heritage import SummarizeRequest, TranslateRequest  # noqa: E402
-from app.schemas.lesson import ComposeRequest  # noqa: E402
-from app.schemas.questions import QuestionsRequest  # noqa: E402
-from app.services.questions import feasible_types  # noqa: E402
-import du_lieu_mau as mau  # noqa: E402
+from app.config import load_settings
+from app.prompts import heritage as heritage_prompts
+from app.prompts import lesson as lesson_prompts
+from app.prompts import questions as question_prompts
+from app.schemas.heritage import SummarizeRequest, TranslateRequest
+from app.schemas.lesson import ComposeRequest
+from app.schemas.questions import QuestionsRequest
+from app.services.questions import feasible_types
 
 PRICE_IN = 0.10 / 1_000_000
 LEVEL_TYPES = {

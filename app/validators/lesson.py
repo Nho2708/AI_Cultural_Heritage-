@@ -138,7 +138,7 @@ def validate_compose(data: Any, req: ComposeRequest) -> Outcome:
 
     rank = {SectionKind.STORY: 0, SectionKind.IMAGE: 1, SectionKind.MILESTONE: 2, SectionKind.REFLECTION: 3}
     steps.sort(key=lambda st: (rank[st.kind], st.year if st.kind == SectionKind.MILESTONE and st.year is not None else 0))
-    has_dates = any(h.timeline for h in req.heritages) or any(re.search(r"\d{3,4}", h.content or "") for h in req.heritages)
+    has_dates = any(h.timeline for h in req.heritages) or any(re.search(r"\b\d{3,4}\b", h.content or "") for h in req.heritages)
     _check_counts(level, kind_counts, bool(offered_media), has_dates, problems)
 
     if level == 1 and kind_counts.get("STORY") and n:

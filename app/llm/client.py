@@ -29,7 +29,7 @@ class TokenUsage:
     cache_read_tokens: int = 0
     cache_write_tokens: int = 0
 
-    def add(self, other: "TokenUsage") -> None:
+    def add(self, other: TokenUsage) -> None:
         self.input_tokens += other.input_tokens
         self.output_tokens += other.output_tokens
         self.cache_read_tokens += other.cache_read_tokens
@@ -91,7 +91,7 @@ class AnthropicLlm:
         self.model = model
 
     @classmethod
-    def from_key(cls, api_key: str, model: str) -> "AnthropicLlm":
+    def from_key(cls, api_key: str, model: str) -> AnthropicLlm:
         # SDK tự đọc ANTHROPIC_AUTH_TOKEN nếu có và gửi cùng khóa API thì nhà cung cấp từ chối: bỏ khỏi môi trường của tiến trình này.
         os.environ.pop("ANTHROPIC_AUTH_TOKEN", None)
         # max_retries=0: việc thử lại do backend quyết định (tối đa 2 lần), tránh nhân đôi thời gian chờ.

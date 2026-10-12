@@ -14,13 +14,13 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 
-import uvicorn  # noqa: E402
+import uvicorn
+from mo_hinh_gia import MoHinhGia
 
-from app.config import load_settings  # noqa: E402
-from app.errors import ModelUnavailable, ServiceError  # noqa: E402
-from app.llm.client import LlmResult, TokenUsage  # noqa: E402
-from app.main import create_app  # noqa: E402
-from mo_hinh_gia import MoHinhGia  # noqa: E402
+from app.config import load_settings
+from app.errors import ModelUnavailable, ServiceError
+from app.llm.client import LlmResult, TokenUsage
+from app.main import create_app
 
 
 class MoHinhLoi(MoHinhGia):

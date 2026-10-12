@@ -8,7 +8,7 @@ from __future__ import annotations
 import itertools
 import json
 import re
-from typing import Any
+from typing import Any, ClassVar
 
 from app.llm.client import LlmResult, TokenUsage
 
@@ -16,12 +16,12 @@ MODEL = "mo-hinh-gia"
 
 
 def _di_san(user: str) -> Any:
-    m = re.search(r"<di_san>\n(.*?)\n</di_san>", user, re.S)
+    m = re.search(r"<di_san>\n(.*?)\n</di_san>", user, re.DOTALL)
     return json.loads(m.group(1)) if m else None
 
 
 def _tokens(text: str) -> list[str]:
-    text = re.sub(r"^#+\s*", "", text, flags=re.M)
+    text = re.sub(r"^#+\s*", "", text, flags=re.MULTILINE)
     text = text.replace("*", "")
     return [t for t in text.split() if t]
 
@@ -108,7 +108,7 @@ class MoHinhGia:
         level = int(re.search(r"Cấp học của lớp: (\d)", user).group(1))
         need = int(re.search(r"Số câu cần sinh: (\d+)", user).group(1))
         feasible: dict[str, list[int]] = {}
-        for t, ids in re.findall(r"^- (\w+) \(.*?\): dùng với di sản có heritageId thuộc \[(.*?)\]", user, re.M):
+        for t, ids in re.findall(r"^- (\w+) \(.*?\): dùng với di sản có heritageId thuộc \[(.*?)\]", user, re.MULTILINE):
             feasible[t] = [int(x) for x in ids.split(",") if x.strip()]
         by_id = {h["heritageId"]: h for h in _di_san(user)}
         types = list(feasible)
@@ -172,7 +172,7 @@ class MoHinhGia:
         return {"shortText": _sentences(tokens, 100, 14), "detailedText": "\n\n".join(paras)}
 
     # ---- Dịch ----
-    CANNED = {
+    CANNED: ClassVar[dict] = {
         "en": ("History", "The heritage site was built by earlier dynasties and expanded over many centuries of continuous development.", "Heritage site", "Period", "Event", "Image"),
         "ko": ("역사", "이 유산은 여러 왕조에 의해 세워졌으며 오랜 세월 동안 계속해서 발전했습니다.", "문화유산", "시기", "사건", "사진"),
         "zh-Hans": ("历史", "这处遗产由历代王朝修建，并在漫长的岁月中不断发展。", "文化遗产", "时期", "事件", "图片"),
@@ -182,7 +182,7 @@ class MoHinhGia:
     def _translate(self, user: str) -> dict:
         target = re.search(r"sang [^()\n]*\(([\w-]+)\)", user).group(1)
         heading, sentence, name, period, event, image = self.CANNED[target]
-        terms = [m.strip().split(" / ")[0] for m in re.findall(r"=> (.*)$", user, re.M)]
+        terms = [m.strip().split(" / ")[0] for m in re.findall(r"=> (.*)$", user, re.MULTILINE)]
         payload = _di_san(user)
         c = payload["content"]
         glossary_line = ("Terms: " if target == "en" else "") + ", ".join(terms)

@@ -8,8 +8,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
-import du_lieu_mau as mau  # noqa: E402
-from mo_hinh_gia import MoHinhGia  # noqa: E402
+import du_lieu_mau as mau
+from mo_hinh_gia import MoHinhGia
 
 LEVEL_TYPES = {
     1: ["TRUE_FALSE", "IMAGE_CHOICE", "MATCHING", "ORDERING"],

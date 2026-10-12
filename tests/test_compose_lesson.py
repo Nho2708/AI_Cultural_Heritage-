@@ -50,7 +50,7 @@ async def test_prompt_and_schema_are_specific_to_the_level(make_client):
         assert call["effort"] == "medium"
         assert call["max_tokens"] >= 8000
     assert "CẤP 1" in schemas[1]["system"] and "CẤP 2" in schemas[2]["system"] and "CẤP 3" in schemas[3]["system"]
-    kind_enum = lambda lv: schemas[lv]["schema"]["properties"]["steps"]["items"]["properties"]["kind"]["enum"]  # noqa: E731
+    kind_enum = lambda lv: schemas[lv]["schema"]["properties"]["steps"]["items"]["properties"]["kind"]["enum"]
     assert kind_enum(1) == ["STORY", "IMAGE"] and kind_enum(2) == ["IMAGE", "MILESTONE"] and kind_enum(3) == ["MILESTONE", "REFLECTION"]
     assert "sourceQuotes" in schemas[3]["schema"]["properties"] and "sourceQuotes" not in schemas[1]["schema"]["properties"]
     assert all(s["schema"]["additionalProperties"] is False for s in schemas.values())

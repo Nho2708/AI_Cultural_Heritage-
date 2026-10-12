@@ -2,7 +2,10 @@
 from __future__ import annotations
 
 from ..rules import (
-    DETAILED_SUMMARY_MAX, DETAILED_SUMMARY_MIN, SHORT_SUMMARY_MAX, SHORT_SUMMARY_MIN,
+    DETAILED_SUMMARY_MAX,
+    DETAILED_SUMMARY_MIN,
+    SHORT_SUMMARY_MAX,
+    SHORT_SUMMARY_MIN,
 )
 from ..schemas.heritage import SummarizeRequest, TranslateRequest
 from .common import INT, SAFETY, STR, dumps, nullable, obj

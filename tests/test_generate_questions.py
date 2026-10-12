@@ -113,7 +113,7 @@ def test_fill_blank_word_bank_is_optional_and_normalized():
     req = questions_request(2, ["FILL_BLANK"])
     item = question_item("FILL_BLANK", 2, req)
     item["distractors"] = []
-    q, errors = check(item, 2, req)
+    q, _errors = check(item, 2, req)
     assert q is not None and q.distractors is None
     item = question_item("FILL_BLANK", 2, req)
     q, _ = check(item, 2, req)

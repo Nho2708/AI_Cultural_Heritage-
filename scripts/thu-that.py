@@ -22,18 +22,19 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")  # type: ignore[union-attr]
 
-from app.config import load_settings  # noqa: E402
-from app.errors import ServiceError  # noqa: E402
-from app.logging_setup import setup_logging  # noqa: E402
-from app.llm.client import Llm, LlmResult, TokenUsage  # noqa: E402
-from app.llm.factory import build_llm  # noqa: E402
-from app.schemas.heritage import SummarizeRequest, TranslateRequest  # noqa: E402
-from app.schemas.lesson import ComposeRequest  # noqa: E402
-from app.schemas.questions import QuestionsRequest  # noqa: E402
-from app.services.heritage import summarize_heritage, translate_heritage  # noqa: E402
-from app.services.lesson import compose_lesson  # noqa: E402
-from app.services.questions import generate_questions  # noqa: E402
-import du_lieu_mau as mau  # noqa: E402
+import du_lieu_mau as mau
+
+from app.config import load_settings
+from app.errors import ServiceError
+from app.llm.client import Llm, LlmResult, TokenUsage
+from app.llm.factory import build_llm
+from app.logging_setup import setup_logging
+from app.schemas.heritage import SummarizeRequest, TranslateRequest
+from app.schemas.lesson import ComposeRequest
+from app.schemas.questions import QuestionsRequest
+from app.services.heritage import summarize_heritage, translate_heritage
+from app.services.lesson import compose_lesson
+from app.services.questions import generate_questions
 
 PRICE_IN, PRICE_OUT = 0.10 / 1_000_000, 0.50 / 1_000_000
 LEVEL_TYPES = {

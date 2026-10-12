@@ -1,0 +1,3 @@
+# Cấu hình ruff: dùng bộ luật mặc định của ruff.
+line-length = 120
+extend-exclude = [".venv"]

@@ -11,7 +11,6 @@ import pytest
 from app.errors import ModelUnavailable, ServiceError
 from app.llm.client import AnthropicLlm
 
-from .conftest import FakeLlm, ok
 from .factories import compose_request, lesson_output
 
 REQ = httpx2.Request("POST", "https://api.anthropic.com/v1/messages")
@@ -50,7 +49,7 @@ def text(value) -> SimpleNamespace:
 
 
 async def call(llm: AnthropicLlm, **kw):
-    params = dict(api="compose-lesson", system="hệ thống", user="người dùng", schema={"type": "object"}, effort="medium", max_tokens=1000, timeout=30.0)
+    params = {"api": "compose-lesson", "system": "hệ thống", "user": "người dùng", "schema": {"type": "object"}, "effort": "medium", "max_tokens": 1000, "timeout": 30.0}
     params.update(kw)
     return await llm.complete_json(**params)
 

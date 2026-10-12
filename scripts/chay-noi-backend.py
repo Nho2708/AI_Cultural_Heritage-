@@ -15,6 +15,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 BASE = os.environ.get("BASE", "http://localhost:5090").rstrip("/")
 AI_URL = os.environ.get("AI_URL", "http://localhost:8000").rstrip("/")
@@ -71,7 +72,7 @@ def need(method, path, body=None, token=None, expect=200, headers=None):
 def mail_token(email):
     email = email.lower()
     for _ in range(60):
-        text = open(API_LOG, encoding="utf-8", errors="replace").read()
+        text = Path(API_LOG).read_text(encoding="utf-8", errors="replace")
         pos = text.lower().rfind("tới: " + email)
         if pos < 0:
             pos = text.lower().rfind(": " + email + " |")
@@ -143,7 +144,7 @@ for grade, name in ((3, "3A"), (8, "8A1"), (11, "11A2")):
         check(f"  số từ cấp {level} trong khung {lo}-{hi}", lo <= n <= hi, f"{n} từ; cảnh báo={d.get('warnings', [])}")
         kinds = sorted({s["type"] for s in d["sections"]})
         check(f"  phần theo khung cấp {level}", bool(d["sections"]), ",".join(kinds))
-        check(f"  3-7 ý chính", 3 <= len(d["keyPoints"]) <= 7, str(len(d["keyPoints"])))
+        check("  3-7 ý chính", 3 <= len(d["keyPoints"]) <= 7, str(len(d["keyPoints"])))
 
     payload, status, secs = call("POST", f"/teacher/lessons/{les['id']}/ai/questions", {"count": 6, "difficultyLevel": "MEDIUM"}, token=T)
     d = payload.get("data") or {}

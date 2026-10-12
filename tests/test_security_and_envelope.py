@@ -4,14 +4,13 @@ from __future__ import annotations
 import json
 import logging
 
-import httpx
 import pytest
 
 from app.config import Settings, env_files
 from app.logging_setup import JsonFormatter, correlation_id_var
 from app.main import create_app
 
-from .conftest import FakeLlm, INTERNAL_KEY, ok
+from .conftest import INTERNAL_KEY, FakeLlm, ok
 from .factories import compose_request, lesson_output
 
 ENDPOINTS = ["compose-lesson", "generate-questions", "summarize-heritage", "translate-heritage", "rank-related"]

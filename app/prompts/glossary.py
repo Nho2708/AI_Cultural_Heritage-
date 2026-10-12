@@ -22,7 +22,7 @@ class Term:
     ja: tuple[str, ...]
 
 
-def T(vi, en, ko, zh, ja) -> Term:  # noqa: N802 - viết tắt cho bảng dữ liệu
+def T(vi, en, ko, zh, ja) -> Term:
     def tup(x):
         return (x,) if isinstance(x, str) else tuple(x)
 

@@ -5,7 +5,7 @@ import re
 import unicodedata
 
 _WS = re.compile(r"\s+")
-_MARKDOWN = re.compile(r"(^\s{0,3}#{1,6}\s)|(\*\*)|(__[^_]+__)|(^\s*[-*+]\s+)|(\[[^\]]+\]\([^)]+\))|(^\s*\d+\.\s)|(`)", re.M)
+_MARKDOWN = re.compile(r"(^\s{0,3}#{1,6}\s)|(\*\*)|(__[^_]+__)|(^\s*[-*+]\s+)|(\[[^\]]+\]\([^)]+\))|(^\s*\d+\.\s)|(`)", re.MULTILINE)
 
 # Chữ chỉ có trong tiếng Việt (không có ở tiếng Anh, Pháp, Bồ...): đ, ơ, ư, ă và các dạng có dấu thanh của â, ê, ô, ă, ơ, ư.
 _VIET_ONLY = set(
@@ -132,8 +132,8 @@ def looks_vietnamese(text: str | None, *, min_words: int = 12) -> bool:
 
 
 _MD_LINK = re.compile(r"\[([^\]]+)\]\([^)]+\)")
-_MD_HEADING = re.compile(r"^\s{0,3}#{1,6}\s+", re.M)
-_MD_BULLET = re.compile(r"^\s*(?:[-*+]|\d+\.)\s+", re.M)
+_MD_HEADING = re.compile(r"^\s{0,3}#{1,6}\s+", re.MULTILINE)
+_MD_BULLET = re.compile(r"^\s*(?:[-*+]|\d+\.)\s+", re.MULTILINE)
 
 
 def strip_markdown(text: str) -> str:

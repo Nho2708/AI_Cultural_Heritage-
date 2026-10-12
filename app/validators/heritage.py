@@ -10,12 +10,19 @@ from .. import rules
 from ..llm.runner import Outcome
 from ..prompts.glossary import missing_terms
 from ..prompts.heritage import glossary_terms
-from ..schemas.heritage import (
-    EventText, HeritageText, MediaText, SummarizeRequest, SummarizeResponse, SummaryText, TimelineText,
-    TranslateRequest, TranslateResponse,
-)
-from ..text import accented_ratio, count_words, looks_vietnamese, script_profile, strip_markdown, words
 from ..schemas.common import Usage
+from ..schemas.heritage import (
+    EventText,
+    HeritageText,
+    MediaText,
+    SummarizeRequest,
+    SummarizeResponse,
+    SummaryText,
+    TimelineText,
+    TranslateRequest,
+    TranslateResponse,
+)
+from ..text import accented_ratio, count_words, looks_vietnamese, script_profile, strip_markdown
 
 # Chữ Hán phồn thể thường gặp, không dùng trong tiếng Trung giản thể.
 _TRADITIONAL = set("國學與後為傳說這個們來時會點無開長東車門問間見認話語讀還進過達連選順領風飛馬魚鳥麼體興歷區變實對將從條樣師員畫書義亞據導愛慶產單廣歲歸營張戰輝總邊輪興")
@@ -189,8 +196,8 @@ def validate_translation(data: Any, req: TranslateRequest) -> Outcome:
         else:
             if not _fit_ratio(src.content or "", content):
                 problems.append("`content` đã dịch có độ dài lệch quá nhiều so với bản gốc (thiếu hoặc thừa phần).")
-            heads_src = len(re.findall(r"^\s{0,3}#{1,6}\s", src.content or "", re.M))
-            heads_out = len(re.findall(r"^\s{0,3}#{1,6}\s", content, re.M))
+            heads_src = len(re.findall(r"^\s{0,3}#{1,6}\s", src.content or "", re.MULTILINE))
+            heads_out = len(re.findall(r"^\s{0,3}#{1,6}\s", content, re.MULTILINE))
             if heads_src != heads_out:
                 problems.append(f"`content` gốc có {heads_src} tiêu đề Markdown, bản dịch có {heads_out}; phải giữ nguyên cấu trúc.")
             if (m := check_script(content, target, where="`content`")):
