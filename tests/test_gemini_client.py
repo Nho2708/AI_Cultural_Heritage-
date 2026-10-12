@@ -58,7 +58,7 @@ def error(status: int, message: str = "lỗi") -> httpx.Response:
 
 
 async def call(llm: GeminiLlm, **kw):
-    params = dict(api="compose-lesson", system="hệ thống", user="người dùng", schema={"type": "object"}, effort="medium", max_tokens=1000, timeout=30.0)
+    params = {"api": "compose-lesson", "system": "hệ thống", "user": "người dùng", "schema": {"type": "object"}, "effort": "medium", "max_tokens": 1000, "timeout": 30.0}
     params.update(kw)
     return await llm.complete_json(**params)
 
