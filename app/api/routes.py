@@ -18,7 +18,7 @@ router = APIRouter()
 @router.get("/health", tags=["health"])
 async def health(request: Request) -> dict:
     settings = request.app.state.settings
-    return {"status": "ok", "model": settings.ai_model, "llmConfigured": settings.llm_configured()}
+    return {"status": "ok", "provider": settings.ai_provider, "model": settings.model_name(), "llmConfigured": settings.llm_configured()}
 
 
 @router.post("/v1/compose-lesson", response_model=ComposeResponse, tags=["ai"])

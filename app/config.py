@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -27,9 +28,19 @@ def env_files() -> tuple[str, ...]:
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=None, extra="ignore", case_sensitive=False)
 
+    # Nhà cung cấp mô hình: "anthropic" (Claude, trả phí theo lượt) hoặc "gemini" (Google AI Studio, có hạn mức miễn phí).
+    ai_provider: Literal["anthropic", "gemini"] = "anthropic"
     anthropic_api_key: SecretStr | None = None
     ai_internal_key: SecretStr | None = None
     ai_model: str = "claude-haiku-5-5"
+    gemini_api_key: SecretStr | None = None
+    gemini_model: str = "gemini-3.8-flash"
+    # Mô hình dự phòng (phân cách bằng dấu phẩy): bản miễn phí giới hạn số lượt mỗi ngày theo từng mô hình, mô hình chính hết hạn mức
+    # hoặc quá tải thì gọi mô hình kế tiếp. Để rỗng nếu chỉ muốn dùng một mô hình.
+    gemini_fallback_models: str = "gemini-3.5-flash,gemini-3.5-flash-lite"
+    # Mức suy nghĩ cho mọi lời gọi Gemini. Mặc định "low": ở hạn mức miễn phí, mức "medium" làm một lần soạn bài mất hơn 40 giây,
+    # quá thời gian chờ của backend; "low" khoảng 15 giây và vẫn qua bộ kiểm. Đặt rỗng để theo effort của từng API.
+    gemini_thinking_level: str | None = "low"
 
     # Thời gian (giây). Ngân sách tổng cho một yêu cầu phải nhỏ hơn thời gian chờ của backend
     # (45 giây soạn bài và sinh câu, 90 giây dịch và tóm tắt) để gọi lại một lần vẫn kịp.
@@ -39,8 +50,17 @@ class Settings(BaseSettings):
     ai_heritage_budget_seconds: float = Field(default=88.0, gt=0)
     ai_log_level: str = "INFO"
 
+    def provider_key(self) -> str | None:
+        """Khóa của nhà cung cấp đang chọn (None nếu chưa đặt)."""
+        secret = self.gemini_api_key if self.ai_provider == "gemini" else self.anthropic_api_key
+        value = secret.get_secret_value().strip() if secret else ""
+        return value or None
+
     def llm_configured(self) -> bool:
-        return self.anthropic_api_key is not None and bool(self.anthropic_api_key.get_secret_value().strip())
+        return self.provider_key() is not None
+
+    def model_name(self) -> str:
+        return self.gemini_model if self.ai_provider == "gemini" else self.ai_model
 
     def internal_key_value(self) -> str:
         return self.ai_internal_key.get_secret_value() if self.ai_internal_key else ""

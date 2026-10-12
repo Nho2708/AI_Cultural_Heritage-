@@ -7,3 +7,4 @@ __pycache__/
 htmlcov/
 *.log
 .thu-that-ledger.json
+.thu-that-ledger-*.json

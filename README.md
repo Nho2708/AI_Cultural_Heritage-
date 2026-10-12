@@ -1,8 +1,13 @@
 # Dịch vụ AI của DSVHVN
 
 Dịch vụ nội bộ (Python, FastAPI) mà backend gọi một chiều qua HTTP. Không truy cập cơ sở dữ liệu, không nhận dữ liệu cá nhân.
-Gọi Claude (mặc định `claude-haiku-5-5`) để soạn bài học, sinh câu hỏi, tóm tắt và dịch di sản; riêng gợi ý di sản liên quan
-chỉ dùng scikit-learn (TF-IDF và cosine), không gọi mô hình ngôn ngữ.
+Gọi mô hình ngôn ngữ để soạn bài học, sinh câu hỏi, tóm tắt và dịch di sản; riêng gợi ý di sản liên quan chỉ dùng scikit-learn
+(TF-IDF và cosine), không gọi mô hình ngôn ngữ. Hai nhà cung cấp, chọn bằng `AI_PROVIDER`:
+
+| `AI_PROVIDER` | Mô hình mặc định | Chi phí | Ghi chú |
+|---|---|---|---|
+| `anthropic` (mặc định) | `claude-haiku-5-5` (`AI_MODEL`) | trả theo lượt, nạp tiền trước | SDK `anthropic` |
+| `gemini` | `gemini-3.8-flash` (`GEMINI_MODEL`) | hạn mức miễn phí của Google AI Studio | REST `generateContent`; bản miễn phí: Google có thể dùng dữ liệu gửi lên, điều khoản yêu cầu người dùng từ 18 tuổi |
 
 | API | Việc | Mô hình | Mức suy nghĩ |
 |---|---|---|---|
@@ -26,7 +31,7 @@ app/
   prompts/              prompt tiếng Việt, lược đồ JSON, bảng thuật ngữ tên riêng
   validators/           bộ kiểm đầu ra theo cấp, dạng câu, ngôn ngữ
   services/             ghép prompt, gọi mô hình, kiểm, gọi lại một lần
-  llm/                  bộ gọi Claude (client.py) và vòng gọi-kiểm-gọi lại (runner.py)
+  llm/                  bộ gọi Claude (client.py), bộ gọi Gemini (gemini.py), chọn theo cấu hình (factory.py), vòng gọi-kiểm-gọi lại (runner.py)
   recommender/rank.py   gợi ý content-based
   rules.py              số liệu quy tắc sao đúng của backend
 scripts/                thử gọi thật, đếm token, chạy nối backend, mô hình giả
@@ -47,14 +52,17 @@ Phiên bản đã ghim: `anthropic 1.13.0`, `fastapi 0.143.0`, `uvicorn 0.54.0`,
 
 ## Đặt khóa
 
-Ba biến: `ANTHROPIC_API_KEY` (khóa nhà cung cấp mô hình), `AI_INTERNAL_KEY` (khóa nội bộ giữa backend và dịch vụ này), `AI_MODEL` (mặc định `claude-haiku-5-5`).
+Các biến: `AI_INTERNAL_KEY` (khóa nội bộ giữa backend và dịch vụ này, bắt buộc), `AI_PROVIDER` (`anthropic` hoặc `gemini`), rồi khóa của nhà cung cấp đã chọn:
+`ANTHROPIC_API_KEY` và `AI_MODEL` (mặc định `claude-haiku-5-5`), hoặc `GEMINI_API_KEY` (tạo ở aistudio.google.com, mục Get API key; đừng bật thanh toán nếu muốn ở bản miễn phí),
+`GEMINI_MODEL` (mặc định `gemini-3.8-flash`) và `GEMINI_THINKING_LEVEL` (mặc định `low`: ở bản miễn phí mức `medium` làm một lần soạn bài quá 40 giây; để rỗng thì theo mức của từng API).
 Chọn một trong hai cách (có cả hai thì `.env` trong thư mục dịch vụ thắng; biến môi trường của tiến trình thắng cả hai):
 
 1. Tệp `.env` cạnh `README.md` (sao từ `.env.example`, bỏ dấu `#` ở dòng nào bạn điền; đã nằm trong `.gitignore`), hoặc
 2. Tệp `%APPDATA%\DSVHVN\ai-service.env` dùng chung cho mọi bản chạy trên máy (cùng ba dòng `TÊN=giá trị`).
 
 Không đặt `ANTHROPIC_API_KEY` thành biến môi trường người dùng hay hệ thống (sẽ chiếm quyền xác thực của công cụ khác): dịch vụ tự đọc từ tệp và chỉ giữ khóa trong tiến trình.
-Thiếu `AI_INTERNAL_KEY` thì dịch vụ không khởi động; thiếu `ANTHROPIC_API_KEY` thì các API dùng mô hình trả 503 còn `rank-related` vẫn chạy.
+Thiếu `AI_INTERNAL_KEY` thì dịch vụ không khởi động; thiếu khóa của nhà cung cấp đã chọn thì các API dùng mô hình trả 503 còn `rank-related` vẫn chạy.
+`GET /health` cho biết nhà cung cấp, mô hình và đã có khóa hay chưa.
 Khóa không bao giờ vào log; log chỉ ghi mã tương quan, API, mô hình, số token, thời gian, kết quả.
 
 ## Chạy
@@ -130,6 +138,18 @@ Token suy nghĩ tính vào token ra. Ước tính cho một lần gọi với m�
 
 Gọi lại do đầu ra sai nhân đôi chi phí của lần đó. Xem số thật: log mỗi lời gọi có `inputTokens`, `outputTokens`, `cacheReadTokens`, `cacheWriteTokens`.
 
+### Số đo thật với Gemini (12/10/2026, `gemini-3.8-flash`, bản miễn phí, mức suy nghĩ `low`)
+
+| Việc | Thời gian | Token vào | Token ra (kể cả suy nghĩ) | Kết quả |
+|---|---|---|---|---|
+| Soạn bài cấp 1, 2, 3 | 13 đến 33 giây | khoảng 1,6 nghìn | 0,9 đến 1,8 nghìn | đạt bộ kiểm ngay lần đầu |
+| Sinh 6 câu cấp 1, 2, 3 | 16 đến 31 giây | 2,6 đến 5,5 nghìn | 1,2 đến 1,6 nghìn | cấp 2 phải gọi lại một lần, được 5/6 câu |
+| Tóm tắt một di sản | 6 giây | khoảng 1 nghìn | khoảng 0,5 nghìn | đạt |
+| Dịch một di sản (kèm tóm tắt) | 9 đến 15 giây | khoảng 1,9 nghìn | 1 đến 1,4 nghìn | đạt ở en, ko, zh-Hans |
+
+Bản miễn phí thỉnh thoảng trả 503 ("high demand") hoặc 429 (vượt số lượt mỗi phút), hoặc trả lời chậm quá thời gian chờ: dịch vụ trả 503/504 để backend tự gọi lại (tối đa 2 lần).
+Chi phí bằng 0 trong hạn mức miễn phí.
+
 ## Chạy test
 
 ```powershell
@@ -138,11 +158,11 @@ Gọi lại do đầu ra sai nhân đôi chi phí của lần đó. Xem số th�
 
 Test dùng mô hình giả và SDK giả, không mạng, không cần khóa thật: khóa nội bộ, lược đồ vào, đầu ra hợp lệ và sai của từng API, gọi lại, `max_tokens`, từ chối, lỗi 429, 5xx, mạng, quá giờ của nhà cung cấp, bảng thuật ngữ, gợi ý, cấu hình, log không lộ khóa.
 
-## Thử với Claude thật và nối backend
+## Thử với mô hình thật và nối backend
 
 ```powershell
-.\.venv\Scripts\python scripts\dem-token.py                     # đếm token vào, kiểm lược đồ được nhà cung cấp chấp nhận (không sinh chữ)
-.\.venv\Scripts\python scripts\thu-that.py                      # mỗi API dùng mô hình chạy với dữ liệu mẫu, in token và chi phí
+.\.venv\Scripts\python scripts\dem-token.py                     # chỉ Claude: đếm token vào, kiểm lược đồ được nhà cung cấp chấp nhận (không sinh chữ)
+.\.venv\Scripts\python scripts\thu-that.py                      # theo AI_PROVIDER: mỗi API dùng mô hình chạy với dữ liệu mẫu, in token và chi phí
 .\.venv\Scripts\python scripts\thu-that.py --only compose --levels 2 --max-calls 10
 ```
 

@@ -14,7 +14,8 @@ from fastapi.responses import JSONResponse
 from .api.routes import router
 from .config import Settings, get_settings
 from .errors import ServiceError
-from .llm.client import AnthropicLlm, Llm
+from .llm.client import Llm
+from .llm.factory import build_llm
 from .logging_setup import correlation_id_var, setup_logging
 
 log = logging.getLogger("ai.http")
@@ -45,10 +46,10 @@ def create_app(settings: Settings | None = None, llm: Llm | None = None, *, conf
             "Thiếu AI_INTERNAL_KEY (khóa nội bộ giữa backend và dịch vụ AI). Đặt trong .env hoặc %APPDATA%\\DSVHVN\\ai-service.env."
         )
     if llm is None:
-        key = settings.anthropic_api_key.get_secret_value() if settings.llm_configured() and settings.anthropic_api_key else None
-        llm = AnthropicLlm.from_key(key, settings.ai_model) if key else AnthropicLlm(None, settings.ai_model)
-        if not key:
-            log.warning("Chưa có ANTHROPIC_API_KEY: các API dùng mô hình sẽ trả 503, rank-related vẫn chạy.")
+        llm = build_llm(settings)
+        if not settings.llm_configured():
+            missing = "GEMINI_API_KEY" if settings.ai_provider == "gemini" else "ANTHROPIC_API_KEY"
+            log.warning(f"Chưa có {missing}: các API dùng mô hình sẽ trả 503, rank-related vẫn chạy.")
 
     app = FastAPI(title="DSVHVN AI Service", version="1.0.0", docs_url=None, redoc_url=None, openapi_url=None)
     app.state.settings = settings

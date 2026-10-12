@@ -5,8 +5,8 @@ Chạy (khóa lấy từ .env hoặc %APPDATA%\\DSVHVN\\ai-service.env, không i
     .venv\\Scripts\\python scripts\\thu-that.py --only compose,translate --levels 2 --languages en,ko --max-calls 20
 
 Sổ đếm lời gọi (--ledger) cộng dồn qua các lần chạy; quá --max-calls thì dừng, để không vượt hạn mức lời gọi thật của đợt thử.
-Giá Haiku 5.5 (prompt tối đa 100 nghìn token): 0,10 USD / 1 triệu token vào, 0,50 USD / 1 triệu token ra;
-đọc từ bộ nhớ đệm 0,1 lần giá vào, ghi bộ nhớ đệm 1,25 lần giá vào.
+Nhà cung cấp theo AI_PROVIDER. Giá Haiku 5.5 (prompt tối đa 100 nghìn token): 0,10 USD / 1 triệu token vào, 0,50 USD / 1 triệu token ra;
+đọc từ bộ nhớ đệm 0,1 lần giá vào, ghi bộ nhớ đệm 1,25 lần giá vào. Gemini dùng hạn mức miễn phí nên chi phí ghi 0 (vẫn in số token).
 """
 from __future__ import annotations
 
@@ -25,7 +25,8 @@ sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")  # type: ign
 from app.config import load_settings  # noqa: E402
 from app.errors import ServiceError  # noqa: E402
 from app.logging_setup import setup_logging  # noqa: E402
-from app.llm.client import AnthropicLlm, LlmResult, TokenUsage  # noqa: E402
+from app.llm.client import Llm, LlmResult, TokenUsage  # noqa: E402
+from app.llm.factory import build_llm  # noqa: E402
 from app.schemas.heritage import SummarizeRequest, TranslateRequest  # noqa: E402
 from app.schemas.lesson import ComposeRequest  # noqa: E402
 from app.schemas.questions import QuestionsRequest  # noqa: E402
@@ -68,9 +69,9 @@ class Ledger:
 
 
 class CountingLlm:
-    """Bọc bộ gọi Claude: đếm lời gọi thật, cộng token, chặn khi hết hạn mức."""
+    """Bọc bộ gọi mô hình: đếm lời gọi thật, cộng token, chặn khi hết hạn mức."""
 
-    def __init__(self, inner: AnthropicLlm, ledger: Ledger):
+    def __init__(self, inner: Llm, ledger: Ledger):
         self.inner, self.ledger = inner, ledger
         self.model = inner.model
         self.usage = TokenUsage()
@@ -120,21 +121,25 @@ async def main() -> int:
     parser.add_argument("--levels", default="1,2,3")
     parser.add_argument("--languages", default="en,ko,zh-Hans,ja")
     parser.add_argument("--max-calls", type=int, default=60)
-    parser.add_argument("--ledger", default=str(ROOT / ".thu-that-ledger.json"))
+    parser.add_argument("--ledger", default=None, help="Sổ đếm lời gọi; mặc định riêng cho từng nhà cung cấp.")
     parser.add_argument("--out", default=None, help="Ghi kết quả đầy đủ ra tệp JSON này (để đọc thử chất lượng; không commit).")
     args = parser.parse_args()
 
     setup_logging("WARNING")  # chỉ lỗi; log không có khóa hay nội dung
     settings = load_settings()
-    if not settings.llm_configured() or settings.anthropic_api_key is None:
-        print("Chưa có ANTHROPIC_API_KEY trong .env hoặc %APPDATA%\\DSVHVN\\ai-service.env.")
+    if not settings.llm_configured():
+        missing = "GEMINI_API_KEY" if settings.ai_provider == "gemini" else "ANTHROPIC_API_KEY"
+        print(f"Chưa có {missing} trong .env hoặc %APPDATA%\\DSVHVN\\ai-service.env.")
         return 2
-    ledger = Ledger(Path(args.ledger), args.max_calls)
-    llm = CountingLlm(AnthropicLlm.from_key(settings.anthropic_api_key.get_secret_value(), settings.ai_model), ledger)
+    if settings.ai_provider == "gemini":
+        global PRICE_IN, PRICE_OUT
+        PRICE_IN = PRICE_OUT = 0.0  # hạn mức miễn phí của Google AI Studio
+    ledger = Ledger(Path(args.ledger or ROOT / f".thu-that-ledger-{settings.ai_provider}.json"), args.max_calls)
+    llm = CountingLlm(build_llm(settings), ledger)
     only = set(args.only.split(","))
     levels = [int(x) for x in args.levels.split(",")]
     languages = args.languages.split(",")
-    print(f"Mô hình: {settings.ai_model}. Đã dùng trước đó: {ledger.data['calls']} lời gọi, ${ledger.data['costUsd']:.4f}.\n")
+    print(f"Mô hình: {settings.ai_provider}/{settings.model_name()}. Đã dùng trước đó: {ledger.data['calls']} lời gọi, ${ledger.data['costUsd']:.4f}.\n")
 
     results: list[dict] = []
 
