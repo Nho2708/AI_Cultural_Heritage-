@@ -150,6 +150,14 @@ Gọi lại do đầu ra sai nhân đôi chi phí của lần đó. Xem số th�
 Bản miễn phí thỉnh thoảng trả 503 ("high demand") hoặc 429 (vượt số lượt mỗi phút), hoặc trả lời chậm quá thời gian chờ: dịch vụ trả 503/504 để backend tự gọi lại (tối đa 2 lần).
 Chi phí bằng 0 trong hạn mức miễn phí.
 
+Hạn mức miễn phí tính theo **từng mô hình**: `gemini-3.8-flash` chỉ có **20 lượt mỗi ngày** (đặt lại vào nửa đêm giờ Thái Bình Dương), nên dịch vụ tự chuyển sang
+`GEMINI_FALLBACK_MODELS` (mặc định `gemini-3.5-flash,gemini-3.5-flash-lite`) khi mô hình chính hết lượt. Xem lượt đã dùng ở https://ai.dev/rate-limit.
+
+Chạy nối qua backend (`scripts/chay-noi-backend.py`, backend `Ai:Mode=Remote` trên cơ sở dữ liệu tạm, 12/10/2026, mô hình chính đã hết lượt nên chạy bằng mô hình dự phòng):
+dịch và tóm tắt một di sản sang 4 ngôn ngữ trong 29 giây; soạn bài cấp 1, 2, 3 trong 13 đến 19 giây; sinh 6 câu mỗi cấp trong khoảng 5 giây, đúng dạng của cấp;
+gợi ý cho khách dùng kết quả của dịch vụ (không dự phòng); khóa nội bộ sai bị từ chối 401. Một điểm chưa đạt: bài cấp 1 có 139 từ, dưới khung 150 đến 250
+(backend chỉ cảnh báo, giáo viên vẫn lưu được).
+
 ## Chạy test
 
 ```powershell
