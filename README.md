@@ -25,6 +25,7 @@ Hợp đồng chi tiết nằm ở phía backend (`docs/bai-hoc-theo-cap.md`, `d
 ```
 app/
   main.py, asgi.py      tạo ứng dụng, kiểm khóa nội bộ, mã tương quan, log JSON
+  serve.py              điểm chạy dưới IIS trên máy demo (cổng lấy từ ASPNETCORE_PORT)
   config.py             cấu hình (pydantic-settings), đọc .env
   api/routes.py         năm API và /health
   schemas/              kiểu yêu cầu, kết quả (JSON camelCase, khớp backend)
@@ -35,6 +36,7 @@ app/
   recommender/rank.py   gợi ý content-based
   rules.py              số liệu quy tắc sao đúng của backend
 scripts/                thử gọi thật, đếm token, chạy nối backend, mô hình giả
+scripts/trien-khai/     cài site IIS, tạo cấu hình, triển khai lên máy demo (CD gọi)
 tests/                  pytest với mô hình giả, không mạng
 ```
 
@@ -48,7 +50,7 @@ py -3.14 -m venv .venv
 .\.venv\Scripts\python -m pip install -r requirements-dev.txt      # thêm pytest để chạy test
 ```
 
-Phiên bản đã ghim: `anthropic 1.13.0`, `fastapi 0.143.0`, `uvicorn 0.54.0`, `pydantic 2.14.0`, `pydantic-settings 2.15.0`, `scikit-learn 1.9.1`, `numpy 2.5.3`.
+Phiên bản đã ghim: `anthropic 1.13.0`, `fastapi 0.143.0`, `httpx 0.28.1` (bộ gọi Gemini), `uvicorn 0.54.0`, `pydantic 2.14.0`, `pydantic-settings 2.15.0`, `scikit-learn 1.9.1`, `numpy 2.5.3`.
 
 ## Đặt khóa
 
@@ -157,6 +159,32 @@ Chạy nối qua backend (`scripts/chay-noi-backend.py`, backend `Ai:Mode=Remote
 dịch và tóm tắt một di sản sang 4 ngôn ngữ trong 29 giây; soạn bài cấp 1, 2, 3 trong 13 đến 19 giây; sinh 6 câu mỗi cấp trong khoảng 5 giây, đúng dạng của cấp;
 gợi ý cho khách dùng kết quả của dịch vụ (không dự phòng); khóa nội bộ sai bị từ chối 401. Một điểm chưa đạt: bài cấp 1 có 139 từ, dưới khung 150 đến 250
 (backend chỉ cảnh báo, giáo viên vẫn lưu được).
+
+Độ dài bài soạn (13/10/2026): mô hình hay viết ngắn hơn mục tiêu, nhất là bản nhẹ (`gemini-3.5-flash-lite` viết 130 đến 145 từ khi được yêu cầu 200).
+Dịch vụ nay báo mục tiêu lùi vào trong khung ít nhất 10% (`rules.target_words`), kèm số câu tương ứng, và không báo dung sai 8% cho mô hình;
+lần đầu kiểm số từ đúng khung, bài hơi ngắn hoặc hơi dài được gọi lại kèm góp ý "viết thêm khoảng N từ", còn bản đó vẫn đạt dung sai thì giữ làm dự phòng
+khi lần gọi lại hỏng hoặc quá giờ. Đo lại trên bản nhẹ: cấp 1 ngắn 214 từ, cấp 1 vừa 233 từ, cấp 2 vừa 369 từ, đều đạt ngay lần đầu; cấp 3 vừa trên bản nhẹ
+chỉ được 546 từ sau khi gọi lại (khung 600 đến 900) nên báo lỗi; mô hình chính `gemini-3.8-flash` đạt cấp 3 ngay lần đầu ở lần đo 12/10.
+Thử lại: `scripts\thu-that.py --only compose --levels 1 --lengths SHORT,MEDIUM`.
+
+## Triển khai lên máy demo
+
+Máy demo `QUANG-NHO` chạy dịch vụ dưới IIS: site **DSVHVN AI** chỉ nghe `127.0.0.1:8090` (không mở ra mạng ngoài, chỉ API trên cùng máy gọi),
+ASP.NET Core Module chạy `.venv\Scripts\python.exe -m app.serve` theo `scripts/trien-khai/web.config`, app pool luôn chạy nên khởi động cùng máy.
+Mã nằm ở `C:\dsvhvn\ai` (bản trước ở `C:\dsvhvn\ai-truoc`), khoá ở `C:\dsvhvn\cau-hinh\ai.env` (web.config trỏ tới qua `AI_ENV_FILE`), nhật ký `C:\dsvhvn\nhat-ky\ai_*.log`.
+
+| Bước | Lệnh | Quyền |
+|---|---|---|
+| 1. Cài một lần: Python 3.14 cho mọi tài khoản (winget), app pool và site IIS, quyền, runner GitHub `may-demo-ai` | `pwsh -File scripts\trien-khai\cai-dat-may-demo-ai.ps1` | Quản trị, sau `cai-dat-may-demo.ps1` của repo backend |
+| 2. Tạo `ai.env` từ `%APPDATA%\DSVHVN\ai-service.env` (chỉ biến `AI_*`, `GEMINI_*`, `ANTHROPIC_*`; đối chiếu khoá nội bộ với API, không in giá trị) | `pwsh -File scripts\trien-khai\tao-cau-hinh-ai.ps1` | Người dùng |
+| 3. Triển khai: gộp vào `main` thì workflow CD tự chạy; chạy tay từ thư mục repo khi runner tắt | `pwsh -File scripts\trien-khai\trien-khai-ai.ps1 -ThuMucGoi .` | Người dùng hoặc runner |
+| 4. Cho API gọi dịch vụ thật: `Ai:Mode=Remote`, `Ai:BaseUrl=http://127.0.0.1:8090` | Repo backend: `tao-cau-hinh-may-demo.ps1` rồi chạy lại CD của backend | Người dùng |
+
+Mỗi lần triển khai: giữ bản đang chạy, đặt `app_offline.htm` để dừng Python, chép mã mới, dựng lại `.venv` chỉ khi `requirements.txt` đổi (so mã băm),
+gỡ `app_offline.htm` rồi chờ `/health` trả 200 (tối đa 180 giây); hỏng thì tự trả bản trước. CI có bước cài riêng `requirements.txt` rồi nạp `app.asgi`
+để bắt gói chạy bị thiếu (test vẫn qua nhờ gói dev nên không tự phát hiện được).
+Đổi khoá (ví dụ khoá Gemini mới): sửa `%APPDATA%\DSVHVN\ai-service.env`, chạy lại bước 2 rồi bước 3.
+Hạn mức miễn phí của Gemini tính theo dự án Google, nên máy dev và máy demo dùng chung một khoá thì dùng chung 20 lượt mỗi ngày cho mỗi mô hình.
 
 ## Chạy test
 

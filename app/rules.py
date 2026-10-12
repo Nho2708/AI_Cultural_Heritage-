@@ -25,6 +25,23 @@ LEVEL_FRAMES: dict[int, LevelFrame] = {
 # Dung sai khi kiểm số từ (đếm theo khoảng trắng): ngoài khoảng của cấp quá 8% thì gọi lại.
 WORD_TOLERANCE = 0.08
 
+# Độ dài câu trung bình dùng để đổi số từ mục tiêu ra số câu khi nhắc mô hình (mô hình theo số câu sát hơn theo số từ).
+SENTENCE_WORDS = {1: 12, 2: 18, 3: 22}
+
+
+def target_words(frame: LevelFrame, length: str) -> int:
+    """Số từ mục tiêu báo cho mô hình: lùi vào trong khung ít nhất 10% so với hai đầu.
+
+    Mô hình hay viết lệch khoảng 10% quanh mục tiêu (bản nhẹ còn ngắn hơn nhiều), nên mục tiêu "ngắn" bằng đúng mức tối thiểu
+    của cấp (vd 150 từ ở cấp 1) thường cho bài dưới mức đó; backend cảnh báo giáo viên khi ngoài khung.
+    """
+    target = frame.targets[length]
+    return max(int(frame.min_words * 1.1), min(target, int(frame.max_words * 0.95)))
+
+
+def target_sentences(frame: LevelFrame, length: str) -> int:
+    return max(3, round(target_words(frame, length) / SENTENCE_WORDS[frame.level]))
+
 LEVEL1_MIN_STEPS, LEVEL1_MAX_STEPS = 3, 6
 LEVEL1_STEP_MAX_WORDS = 50
 LEVEL1_MAX_IMAGES = 3

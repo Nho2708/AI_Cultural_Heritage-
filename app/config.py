@@ -13,15 +13,19 @@ SERVICE_DIR = Path(__file__).resolve().parent.parent
 
 
 def env_files() -> tuple[str, ...]:
-    r"""Tệp .env theo thứ tự ưu tiên tăng dần: %APPDATA%\DSVHVN\ai-service.env rồi .env trong thư mục dịch vụ.
+    r"""Tệp .env theo thứ tự ưu tiên tăng dần: %APPDATA%\DSVHVN\ai-service.env, .env trong thư mục dịch vụ, rồi tệp ở AI_ENV_FILE.
 
-    Biến môi trường của tiến trình luôn thắng cả hai tệp. Tệp nào không có thì bỏ qua.
+    AI_ENV_FILE dùng khi dịch vụ chạy dưới IIS trên máy demo (tài khoản app pool không có %APPDATA% của người dùng):
+    web.config trỏ tới C:\dsvhvn\cau-hinh\ai.env. Biến môi trường của tiến trình luôn thắng mọi tệp. Tệp nào không có thì bỏ qua.
     """
     files: list[str] = []
     appdata = os.environ.get("APPDATA")
     if appdata:
         files.append(str(Path(appdata) / "DSVHVN" / "ai-service.env"))
     files.append(str(SERVICE_DIR / ".env"))
+    explicit = os.environ.get("AI_ENV_FILE", "").strip()
+    if explicit:
+        files.append(explicit)
     return tuple(files)
 
 

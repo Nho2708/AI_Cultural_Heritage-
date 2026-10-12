@@ -70,15 +70,23 @@ async def run_validated(
             break
         timeout = max(1.0, min(llm_timeout, remaining))
         started = time.perf_counter()
-        result = await llm.complete_json(
-            api=api,
-            system=system,
-            user=user(problems) if callable(user) else with_feedback(user, problems),
-            schema=schema,
-            effort=effort,
-            max_tokens=tokens,
-            timeout=timeout,
-        )
+        try:
+            result = await llm.complete_json(
+                api=api,
+                system=system,
+                user=user(problems) if callable(user) else with_feedback(user, problems),
+                schema=schema,
+                effort=effort,
+                max_tokens=tokens,
+                timeout=timeout,
+            )
+        except ModelUnavailable:
+            # Lần gọi lại hỏng (quá giờ, quá tải) mà lần trước đã có phần dùng được thì trả phần đó thay vì báo lỗi.
+            fallback = finalize() if attempt > 1 and finalize is not None else None
+            if fallback is None:
+                raise
+            log.warning("Lần gọi lại hỏng, dùng kết quả của lần trước", extra={"api": api, "attempt": attempt})
+            return RunResult(fallback, usage, model)
         usage.add(result.usage)
         model = result.model or model
         if result.truncated:

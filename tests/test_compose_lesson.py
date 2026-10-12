@@ -5,6 +5,7 @@ import copy
 
 import pytest
 
+from app import rules
 from app.errors import ModelUnavailable, ServiceError
 
 from .conftest import FakeLlm, ok, truncated
@@ -55,6 +56,19 @@ async def test_prompt_and_schema_are_specific_to_the_level(make_client):
     assert "sourceQuotes" in schemas[3]["schema"]["properties"] and "sourceQuotes" not in schemas[1]["schema"]["properties"]
     assert all(s["schema"]["additionalProperties"] is False for s in schemas.values())
     assert "mục tiêu khoảng 200 từ" in schemas[1]["user"] and "mục tiêu khoảng 400 từ" in schemas[2]["user"]
+    # Dung sai của bộ kiểm không được báo cho mô hình (mô hình coi đó là phép viết ngắn hơn khung).
+    assert "tuyệt đối" not in schemas[1]["user"] and "138" not in schemas[1]["user"]
+
+
+@pytest.mark.parametrize(
+    ("level", "length", "expected"),
+    [(1, "SHORT", 165), (1, "MEDIUM", 200), (1, "DETAILED", 237), (2, "SHORT", 330), (2, "DETAILED", 475), (3, "SHORT", 660), (3, "MEDIUM", 750)],
+)
+def test_prompt_target_stays_inside_the_level_range(level, length, expected):
+    frame = rules.LEVEL_FRAMES[level]
+    target = rules.target_words(frame, length)
+    assert target == expected
+    assert frame.min_words < target < frame.max_words
 
 
 async def test_wrong_word_count_triggers_one_retry_with_feedback_and_usage_is_summed(make_client):
@@ -298,3 +312,49 @@ async def test_level_two_without_any_dates_may_have_no_milestone(make_client):
     r = await make_client(FakeLlm(ok(out))).post(URL, json=req)
     assert r.status_code == 200, r.text
     assert not [s for s in r.json()["steps"] if s["kind"] == "MILESTONE"]
+
+
+async def test_slightly_short_draft_is_retried_with_feedback_first(make_client):
+    # 140 từ ở cấp 1: đạt khi có dung sai nhưng dưới khung 150 đến 250, nên lần đầu vẫn gọi lại kèm góp ý.
+    req = compose_request(1)
+    short = lesson_output(1, req, words=140)
+    good = lesson_output(1, req)
+    llm = FakeLlm(ok(short), ok(good))
+    r = await make_client(llm).post(URL, json=req)
+
+    assert r.status_code == 200
+    assert len(llm.calls) == 2
+    assert "140 từ" in llm.calls[1]["user"]
+    assert r.json()["content"] == good["content"]
+
+
+async def test_failed_retry_returns_the_slightly_short_first_draft(make_client):
+    req = compose_request(1)
+    short = lesson_output(1, req, words=140)
+    llm = FakeLlm(ok(short), ModelUnavailable(504, "llm_timeout", "x"))
+    r = await make_client(llm).post(URL, json=req)
+
+    assert r.status_code == 200
+    assert len(llm.calls) == 2
+    assert r.json()["content"] == short["content"]
+
+
+async def test_last_attempt_still_accepts_a_slightly_short_draft(make_client):
+    req = compose_request(1)
+    first = lesson_output(1, req, words=140)
+    second = lesson_output(1, req, words=142)
+    llm = FakeLlm(ok(first), ok(second))
+    r = await make_client(llm).post(URL, json=req)
+
+    assert r.status_code == 200
+    assert r.json()["content"] == second["content"]
+
+
+async def test_failed_retry_after_an_unusable_draft_is_still_an_error(make_client):
+    req = compose_request(1)
+    too_short = lesson_output(1, req, words=90)
+    llm = FakeLlm(ok(too_short), ModelUnavailable(504, "llm_timeout", "x"))
+    r = await make_client(llm).post(URL, json=req)
+
+    assert r.status_code == 504
+    assert r.json()["errorCode"] == "llm_timeout"
