@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Tạo C:\dsvhvn\cau-hinh\ai.env cho Dịch vụ AI trên máy demo từ tệp khoá của máy dev (không in giá trị nào).
 

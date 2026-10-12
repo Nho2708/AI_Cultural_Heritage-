@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Cài đặt một lần phần Dịch vụ AI trên máy demo QUANG-NHO: Python 3.14 cho mọi tài khoản, site IIS 127.0.0.1:8090, quyền, runner GitHub.
 

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Triển khai Dịch vụ AI lên máy demo: thay mã, dựng lại môi trường Python khi danh sách gói đổi, kiểm sức khoẻ, tự trả bản trước khi hỏng.
 
