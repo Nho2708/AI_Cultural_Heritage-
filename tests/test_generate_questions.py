@@ -5,6 +5,7 @@ import copy
 
 import pytest
 
+from app.errors import ModelUnavailable
 from app.validators.questions import count_markers, validate_question
 
 from .conftest import FakeLlm, ok
@@ -166,6 +167,17 @@ async def test_fewer_than_requested_after_retry_is_returned_as_partial(make_clie
     bad = question_item("SINGLE_CHOICE", 2, req, 1)
     bad["options"].pop()
     llm = FakeLlm(ok({"questions": [question_item("SINGLE_CHOICE", 2, req, 0), bad]}))
+    r = await make_client(llm).post(URL, json=req)
+    assert r.status_code == 200 and len(r.json()["questions"]) == 1
+    assert len(llm.calls) == 2
+
+
+async def test_failed_retry_returns_the_questions_already_accepted(make_client):
+    req = questions_request(2, ["SINGLE_CHOICE"], count=3)
+    bad = question_item("SINGLE_CHOICE", 2, req, 1)
+    bad["options"].pop()
+    first = {"questions": [question_item("SINGLE_CHOICE", 2, req, 0), bad]}
+    llm = FakeLlm(ok(first), ModelUnavailable(504, "llm_timeout", "x"))
     r = await make_client(llm).post(URL, json=req)
     assert r.status_code == 200 and len(r.json()["questions"]) == 1
     assert len(llm.calls) == 2

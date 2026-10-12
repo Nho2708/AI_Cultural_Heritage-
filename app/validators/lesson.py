@@ -39,11 +39,11 @@ class _RawLesson(BaseModel):
     sourceQuotes: list[_RawQuote] = []
 
 
-def word_window(frame: rules.LevelFrame) -> tuple[int, int]:
-    return int(frame.min_words * (1 - rules.WORD_TOLERANCE)), int(frame.max_words * (1 + rules.WORD_TOLERANCE)) + 1
+def word_window(frame: rules.LevelFrame, tolerance: float = rules.WORD_TOLERANCE) -> tuple[int, int]:
+    return int(frame.min_words * (1 - tolerance)), int(frame.max_words * (1 + tolerance)) + (1 if tolerance else 0)
 
 
-def validate_compose(data: Any, req: ComposeRequest) -> Outcome:
+def validate_compose(data: Any, req: ComposeRequest, *, word_tolerance: float = rules.WORD_TOLERANCE) -> Outcome:
     try:
         raw = _RawLesson.model_validate(data)
     except ValidationError:
@@ -56,13 +56,19 @@ def validate_compose(data: Any, req: ComposeRequest) -> Outcome:
     # ---- Nội dung chính ----
     content = strip_markdown(raw.content)
     n = count_words(content)
-    low, high = word_window(frame)
+    low, high = word_window(frame, word_tolerance)
     if n == 0:
         problems.append("`content` rỗng.")
     elif not low <= n <= high:
+        target = rules.target_words(frame, req.length.value)
+        per_sentence = rules.SENTENCE_WORDS[level]
+        if n < low:
+            fix = f"viết thêm khoảng {target - n} từ (khoảng {max(1, round((target - n) / per_sentence))} câu nữa, thêm chi tiết có trong tư liệu)"
+        else:
+            fix = f"rút bớt khoảng {n - target} từ"
         problems.append(
             f"`content` hiện có {n} từ, phải nằm trong {frame.min_words} đến {frame.max_words} từ "
-            f"(mục tiêu {frame.targets[req.length.value]} từ)."
+            f"(mục tiêu {target} từ): {fix}."
         )
     if n and not looks_vietnamese(content):
         problems.append("`content` phải viết bằng tiếng Việt có dấu, không lẫn ngôn ngữ khác.")

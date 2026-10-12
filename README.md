@@ -160,6 +160,13 @@ dịch và tóm tắt một di sản sang 4 ngôn ngữ trong 29 giây; soạn b
 gợi ý cho khách dùng kết quả của dịch vụ (không dự phòng); khóa nội bộ sai bị từ chối 401. Một điểm chưa đạt: bài cấp 1 có 139 từ, dưới khung 150 đến 250
 (backend chỉ cảnh báo, giáo viên vẫn lưu được).
 
+Độ dài bài soạn (13/10/2026): mô hình hay viết ngắn hơn mục tiêu, nhất là bản nhẹ (`gemini-3.5-flash-lite` viết 130 đến 145 từ khi được yêu cầu 200).
+Dịch vụ nay báo mục tiêu lùi vào trong khung ít nhất 10% (`rules.target_words`), kèm số câu tương ứng, và không báo dung sai 8% cho mô hình;
+lần đầu kiểm số từ đúng khung, bài hơi ngắn hoặc hơi dài được gọi lại kèm góp ý "viết thêm khoảng N từ", còn bản đó vẫn đạt dung sai thì giữ làm dự phòng
+khi lần gọi lại hỏng hoặc quá giờ. Đo lại trên bản nhẹ: cấp 1 ngắn 214 từ, cấp 1 vừa 233 từ, cấp 2 vừa 369 từ, đều đạt ngay lần đầu; cấp 3 vừa trên bản nhẹ
+chỉ được 546 từ sau khi gọi lại (khung 600 đến 900) nên báo lỗi; mô hình chính `gemini-3.8-flash` đạt cấp 3 ngay lần đầu ở lần đo 12/10.
+Thử lại: `scripts\thu-that.py --only compose --levels 1 --lengths SHORT,MEDIUM`.
+
 ## Triển khai lên máy demo
 
 Máy demo `QUANG-NHO` chạy dịch vụ dưới IIS: site **DSVHVN AI** chỉ nghe `127.0.0.1:8090` (không mở ra mạng ngoài, chỉ API trên cùng máy gọi),

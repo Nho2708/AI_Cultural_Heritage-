@@ -121,6 +121,7 @@ async def main() -> int:
     parser.add_argument("--only", default="compose,questions,summarize,translate")
     parser.add_argument("--levels", default="1,2,3")
     parser.add_argument("--languages", default="en,ko,zh-Hans,ja")
+    parser.add_argument("--lengths", default="MEDIUM", help="Độ dài bài soạn, phân cách bằng dấu phẩy: SHORT, MEDIUM, DETAILED.")
     parser.add_argument("--max-calls", type=int, default=60)
     parser.add_argument("--ledger", default=None, help="Sổ đếm lời gọi; mặc định riêng cho từng nhà cung cấp.")
     parser.add_argument("--out", default=None, help="Ghi kết quả đầy đủ ra tệp JSON này (để đọc thử chất lượng; không commit).")
@@ -145,9 +146,9 @@ async def main() -> int:
     results: list[dict] = []
 
     if "compose" in only:
-        for level in levels:
+        for level, length in [(lv, ln) for lv in levels for ln in args.lengths.split(",")]:
             req = ComposeRequest.model_validate({
-                "generationId": 1, "lessonId": 1, "gradeLevel": level, "length": "MEDIUM",
+                "generationId": 1, "lessonId": 1, "gradeLevel": level, "length": length,
                 "heritages": [mau.di_san()], "currentContent": "",
             })
 
@@ -157,7 +158,7 @@ async def main() -> int:
                     kinds[s.kind.value] = kinds.get(s.kind.value, 0) + 1
                 return f"{words(r.content)} từ; ý chính={len(r.key_points)}; phần={kinds}; trích={len(r.source_quotes)}"
 
-            results.append(await run_case(f"compose-lesson cấp {level}", llm, lambda req=req: compose_lesson(req, llm, settings), describe))
+            results.append(await run_case(f"compose-lesson cấp {level} {length}", llm, lambda req=req: compose_lesson(req, llm, settings), describe))
 
     if "questions" in only:
         for level in levels:

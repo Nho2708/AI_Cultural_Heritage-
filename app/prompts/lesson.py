@@ -1,7 +1,7 @@
 """Prompt và lược đồ JSON soạn nội dung bài học theo cấp (tiếng Việt)."""
 from __future__ import annotations
 
-from ..rules import LEVEL_FRAMES, WORD_TOLERANCE
+from ..rules import LEVEL_FRAMES, target_sentences, target_words
 from ..schemas.lesson import ComposeRequest
 from .common import INT, SAFETY, STR, dumps, heritage_payload, nullable, obj
 
@@ -73,12 +73,14 @@ def schema(level: int) -> dict:
 
 def user_prompt(req: ComposeRequest) -> str:
     frame = LEVEL_FRAMES[req.grade_level]
-    target = frame.targets[req.length.value]
-    low = int(frame.min_words * (1 - WORD_TOLERANCE))
-    high = int(frame.max_words * (1 + WORD_TOLERANCE))
+    target = target_words(frame, req.length.value)
+    sentences = target_sentences(frame, req.length.value)
     parts = [
         "<yeu_cau>",
-        f"Cấp học: {frame.name}. Độ dài `content` mục tiêu khoảng {target} từ (bắt buộc nằm trong {frame.min_words} đến {frame.max_words} từ; tuyệt đối không ngoài {low} đến {high} từ).",
+        (
+            f"Cấp học: {frame.name}. Độ dài `content` mục tiêu khoảng {target} từ (khoảng {sentences} câu), "
+            f"bắt buộc nằm trong {frame.min_words} đến {frame.max_words} từ. Viết đủ dài: thiếu từ thì thêm chi tiết có trong tư liệu, không bịa."
+        ),
         "</yeu_cau>",
     ]
     if req.current_content.strip():
