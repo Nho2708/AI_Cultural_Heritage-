@@ -1,0 +1,172 @@
+{
+  "huongDan": [
+    "Hai người gán nhãn làm ĐỘC LẬP, không xem nhãn của nhau: với mỗi di sản, điền vào nhanNguoi1 và nhanNguoi2 từ 3 đến 5 mã (id) của các di sản liên quan, chọn trong 20 di sản của danh sách này (không chọn chính nó).",
+    "Liên quan là em học về di sản này thì nên được gợi ý đọc tiếp di sản kia (cùng chủ đề, cùng thời kỳ, cùng vùng, cùng loại hình...). Không xem kết quả xếp hạng của dịch vụ trước khi gán.",
+    "Sau khi cả hai xong, đối chiếu chỗ lệch và điền danh sách đã thống nhất vào thongNhat (3 đến 5 mã). Nếu mời được một giáo viên thì cho giáo viên gán thêm theo cách tương tự trên một bản sao của tệp này và đối chiếu chung ở bước thống nhất.",
+    "Điền tên hai người vào nguoiGan1 và nguoiGan2. Tệp này chỉ đưa vào git khi nhãn do người thật gán."
+  ],
+  "nguoiGan1": "",
+  "nguoiGan2": "",
+  "diSan": [
+    {
+      "id": 1,
+      "slug": "khu-trung-tam-hoang-thanh-thang-long-ha-noi",
+      "ten": "Khu Trung tâm Hoàng thành Thăng Long – Hà Nội",
+      "nhanNguoi1": [],
+      "nhanNguoi2": [],
+      "thongNhat": []
+    },
+    {
+      "id": 2,
+      "slug": "van-mieu-quoc-tu-giam",
+      "ten": "Văn Miếu – Quốc Tử Giám",
+      "nhanNguoi1": [],
+      "nhanNguoi2": [],
+      "thongNhat": []
+    },
+    {
+      "id": 3,
+      "slug": "82-bia-tien-si-van-mieu-quoc-tu-giam",
+      "ten": "82 bia Tiến sĩ Văn Miếu – Quốc Tử Giám",
+      "nhanNguoi1": [],
+      "nhanNguoi2": [],
+      "thongNhat": []
+    },
+    {
+      "id": 4,
+      "slug": "chien-truong-dien-bien-phu",
+      "ten": "Chiến trường Điện Biên Phủ",
+      "nhanNguoi1": [],
+      "nhanNguoi2": [],
+      "thongNhat": []
+    },
+    {
+      "id": 5,
+      "slug": "vinh-ha-long-quan-dao-cat-ba",
+      "ten": "Vịnh Hạ Long – Quần đảo Cát Bà",
+      "nhanNguoi1": [],
+      "nhanNguoi2": [],
+      "thongNhat": []
+    },
+    {
+      "id": 6,
+      "slug": "yen-tu-vinh-nghiem-con-son-kiep-bac",
+      "ten": "Quần thể di tích và danh thắng Yên Tử – Vĩnh Nghiêm – Côn Sơn, Kiếp Bạc",
+      "nhanNguoi1": [],
+      "nhanNguoi2": [],
+      "thongNhat": []
+    },
+    {
+      "id": 7,
+      "slug": "dan-ca-quan-ho-bac-ninh",
+      "ten": "Dân ca Quan họ Bắc Ninh",
+      "nhanNguoi1": [],
+      "nhanNguoi2": [],
+      "thongNhat": []
+    },
+    {
+      "id": 8,
+      "slug": "nghe-lam-tranh-dan-gian-dong-ho",
+      "ten": "Nghề làm tranh dân gian Đông Hồ",
+      "nhanNguoi1": [],
+      "nhanNguoi2": [],
+      "thongNhat": []
+    },
+    {
+      "id": 9,
+      "slug": "den-hung",
+      "ten": "Đền Hùng",
+      "nhanNguoi1": [],
+      "nhanNguoi2": [],
+      "thongNhat": []
+    },
+    {
+      "id": 10,
+      "slug": "tin-nguong-tho-cung-hung-vuong-o-phu-tho",
+      "ten": "Tín ngưỡng thờ cúng Hùng Vương ở Phú Thọ",
+      "nhanNguoi1": [],
+      "nhanNguoi2": [],
+      "thongNhat": []
+    },
+    {
+      "id": 11,
+      "slug": "quan-the-danh-thang-trang-an",
+      "ten": "Quần thể danh thắng Tràng An",
+      "nhanNguoi1": [],
+      "nhanNguoi2": [],
+      "thongNhat": []
+    },
+    {
+      "id": 12,
+      "slug": "thanh-nha-ho",
+      "ten": "Thành nhà Hồ",
+      "nhanNguoi1": [],
+      "nhanNguoi2": [],
+      "thongNhat": []
+    },
+    {
+      "id": 13,
+      "slug": "vuon-quoc-gia-phong-nha-ke-bang",
+      "ten": "Vườn quốc gia Phong Nha – Kẻ Bàng",
+      "nhanNguoi1": [],
+      "nhanNguoi2": [],
+      "thongNhat": []
+    },
+    {
+      "id": 14,
+      "slug": "quan-the-di-tich-co-do-hue",
+      "ten": "Quần thể di tích Cố đô Huế",
+      "nhanNguoi1": [],
+      "nhanNguoi2": [],
+      "thongNhat": []
+    },
+    {
+      "id": 15,
+      "slug": "nha-nhac-am-nhac-cung-dinh-viet-nam",
+      "ten": "Nhã nhạc – Âm nhạc cung đình Việt Nam",
+      "nhanNguoi1": [],
+      "nhanNguoi2": [],
+      "thongNhat": []
+    },
+    {
+      "id": 16,
+      "slug": "do-thi-co-hoi-an",
+      "ten": "Đô thị cổ Hội An",
+      "nhanNguoi1": [],
+      "nhanNguoi2": [],
+      "thongNhat": []
+    },
+    {
+      "id": 17,
+      "slug": "khu-den-thap-my-son",
+      "ten": "Khu đền tháp Mỹ Sơn",
+      "nhanNguoi1": [],
+      "nhanNguoi2": [],
+      "thongNhat": []
+    },
+    {
+      "id": 18,
+      "slug": "khong-gian-van-hoa-cong-chieng-tay-nguyen",
+      "ten": "Không gian văn hóa Cồng chiêng Tây Nguyên",
+      "nhanNguoi1": [],
+      "nhanNguoi2": [],
+      "thongNhat": []
+    },
+    {
+      "id": 19,
+      "slug": "dinh-doc-lap",
+      "ten": "Dinh Độc Lập",
+      "nhanNguoi1": [],
+      "nhanNguoi2": [],
+      "thongNhat": []
+    },
+    {
+      "id": 20,
+      "slug": "nghe-thuat-don-ca-tai-tu-nam-bo",
+      "ten": "Nghệ thuật Đờn ca tài tử Nam Bộ",
+      "nhanNguoi1": [],
+      "nhanNguoi2": [],
+      "thongNhat": []
+    }
+  ]
+}

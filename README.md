@@ -212,3 +212,63 @@ Khi chưa gọi được Claude (hết số dư, không mạng) mà vẫn cần 
 $env:ADMIN_PASSWORD = "<mật khẩu quản trị của backend tạm>"; $env:API_LOG = "<tệp log của backend>"; $env:BASE = "http://localhost:5090"
 .\.venv\Scripts\python scripts\chay-noi-backend.py              # xuất bản di sản, dịch, tạo lớp, soạn bài, sinh câu, gợi ý cho khách
 ```
+
+## Đánh giá mô hình
+
+Bộ script trong `scripts/danh-gia/` đo phần **gợi ý** của hệ thống. Không gọi mô hình ngôn ngữ, không cần học sinh thật, không đụng cơ sở dữ liệu thật.
+
+| Script | Đo gì |
+|---|---|
+| `do-di-san-lien-quan.py` | **Di sản liên quan.** precision@3 của hai cách xếp, "chỉ thuộc tính" (tắt phần giống chữ) và "thuộc tính + TF-IDF" (đúng như `app/recommender/rank.py`), trên 20 di sản của backend, so với bộ nhãn do hai người gán. Chỉ tiêu: ≥ 0,5. Cũng in độ đồng thuận giữa hai người gán (Jaccard, kappa của Cohen). |
+| `hoc-sinh-ao.py` | **Học sinh ảo và gợi ý cá nhân hóa.** Dựng trường, lớp ở cả 3 cấp (mỗi lớp 10 bài học đã xuất bản và 10 bài kiểm tra), khoảng 180 em ảo mỗi mức nhiễu (3 mức nhiễu: nhầm 10%, 15%, 20% ở di sản đã vững) mỗi em làm 2 bài, cộng 5 lớp em chưa có lượt nào mỗi cấp; đọc "Gợi ý cho em" từ backend rồi đo: hit@3 di sản yếu so với 3 đường cơ sở ("quiz chưa làm theo hạn đóng", "bài mới nhất của lớp", "bài ngẫu nhiên của lớp") và phần "di sản nên ôn" so với 2 đường cơ sở; độ khó khớp mức của em; tác động của khối lớp với em chưa có lượt nào; gợi ý đúng lớp (chỉ tiêu 100%). |
+| `chay-danh-gia.ps1` | Dựng backend tạm, chạy hai script trên, tắt backend, xóa cơ sở dữ liệu tạm. |
+| `danh_gia_chung.py`, `cau_hoi_mau.py`, `backend_api.py` | Hàm thuần (precision@k, hit@k, đường cơ sở, mô phỏng có hạt giống), dựng câu hỏi mẫu từ dữ liệu di sản, gọi API. Có test trong `tests/`. |
+
+Tham số mô phỏng (xác suất đúng ở di sản yếu: 25% câu 4 phương án, 50% câu đúng/sai; ba mức nhiễu; hạt giống; số em, số bài, số câu) nằm ở **đầu `hoc-sinh-ao.py`**, in ra đầu báo cáo **trước khi đo**. Đổi tham số là đo lại từ đầu và ghi vào báo cáo.
+
+### Chạy (khuyến nghị: một lệnh)
+
+Cần .NET SDK 9, SQL Server LocalDB, `sqlcmd` trong PATH, môi trường ảo `.venv` đã cài `requirements-dev.txt`, và backend (thư mục `BE_Cultural_Heritage-` cạnh repo này, hoặc truyền `-BackendDir`).
+
+```powershell
+pwsh -File scripts/danh-gia/chay-danh-gia.ps1                                    # đo cả hai phần, kết quả ở %TEMP%\dsvhvn-danhgia-<giờ>\ket-qua
+pwsh -File scripts/danh-gia/chay-danh-gia.ps1 -Phan di-san-lien-quan -Out D:\tam\dg
+pwsh -File scripts/danh-gia/chay-danh-gia.ps1 -Phan goi-y-ca-nhan -ThamSoHocSinh "--kieu-han-dong=cung-ngay"
+pwsh -File scripts/danh-gia/chay-danh-gia.ps1 -Phan goi-y-ca-nhan -ThamSoHocSinh "--thu-nho"   # cỡ nhỏ (khoảng 1 phút) để thử đường đi
+```
+
+Script `chay-danh-gia.ps1` tự làm theo thứ tự: publish backend vào thư mục tạm; tạo cơ sở dữ liệu LocalDB tên `dsvhvn_tam_danhgia_<giờ>`; chạy backend ở cổng 5090; chạy các script đo; tắt backend; **xóa cơ sở dữ liệu tạm** rồi kiểm lại bằng truy vấn rằng không còn.
+Để không chạm vào dữ liệu thật dù User Secrets của backend đang trỏ vào cơ sở dữ liệu thật, gửi thư thật và gọi AI thật, script **đè** bằng biến môi trường của tiến trình con: `ConnectionStrings__Default` (cơ sở dữ liệu tạm), `Email__Mode=Log`, `Ai__Mode=Simulated`, `Storage__Provider=Local`, `ASPNETCORE_ENVIRONMENT=Development`, `ASPNETCORE_URLS=http://localhost:<cổng>`.
+Script từ chối tên cơ sở dữ liệu không bắt đầu bằng `dsvhvn_tam_danhgia_` và các cổng 5080, 8080, 8081, 8082, 8090. Mật khẩu quản trị lấy từ User Secrets của backend (khóa `Seed:AdminPassword`) hoặc biến `ADMIN_PASSWORD`, chỉ đi vào tiến trình con, không in và không ghi ra tệp.
+Giữ backend để xem dữ liệu: thêm `-GiuBackend`, dọn sau bằng `-DonDep -Database <tên> -MaTienTrinh <mã>`. Gọi `pwsh` (PowerShell 7), không dùng Windows PowerShell 5.
+
+### Chạy tay các script
+
+Khi đã có một backend tạm (cơ sở dữ liệu tạm, `Email__Mode=Log`, `Ai__Mode=Simulated`) ở cổng 5090:
+
+```powershell
+$env:BASE = "http://localhost:5090"; $env:API_LOG = "<tệp log của backend>"; $env:ADMIN_PASSWORD = "<mật khẩu quản trị của backend tạm>"
+.\.venv\Scripts\python scripts\danh-gia\do-di-san-lien-quan.py --out D:\tam\dg
+.\.venv\Scripts\python scripts\danh-gia\hoc-sinh-ao.py --out D:\tam\dg
+```
+
+`hoc-sinh-ao.py` có thêm `--hoc-sinh-moi-lop`, `--hoc-sinh-chua-lam`, `--lop-chua-lam`, `--kieu-han-dong khac-nhau|cung-ngay`, `--luong`, `--hat`, `--thu-nho`. Mỗi lần chạy tạo một trường mới trong cơ sở dữ liệu nên chạy lại trên cùng backend là được.
+
+### Kết quả nằm ở đâu
+
+Báo cáo Markdown tiếng Việt (bảng) và JSON số liệu thô nằm trong thư mục `-Out` / `--out` (mặc định dưới `%TEMP%`): `di-san-lien-quan.md`, `di-san-lien-quan.json`, `hoc-sinh-ao.md`, `hoc-sinh-ao.json`. **Không đưa vào git.**
+
+### Bộ nhãn di sản liên quan phải do hai người gán
+
+Tệp `scripts/danh-gia/nhan-di-san-lien-quan.json` liệt kê 20 di sản với các danh sách nhãn **để trống**: script không bịa nhãn. Cách làm:
+
+1. Hai thành viên, **độc lập và không xem nhãn của nhau**, mỗi người điền `nhanNguoi1` / `nhanNguoi2` cho từng di sản: 3 đến 5 mã (`id`) di sản liên quan, chọn trong 20 di sản của danh sách, không chọn chính nó. Không xem kết quả xếp hạng của dịch vụ trước khi gán. Ghi tên vào `nguoiGan1`, `nguoiGan2`.
+2. Đối chiếu chỗ lệch, điền danh sách đã thống nhất vào `thongNhat` (3 đến 5 mã). Nếu mời được một giáo viên thì cho gán thêm theo cùng cách trên một bản sao tệp và đưa vào bước thống nhất.
+3. Chạy `chay-danh-gia.ps1 -Phan di-san-lien-quan`. Khi chưa có nhãn, báo cáo nói rõ "không có số precision@3" và chỉ in ba di sản đứng đầu của hai cách; có nhãn thì tính precision@3 theo danh sách thống nhất, theo từng người gán, và đồng thuận (Jaccard, kappa).
+4. Chỉ commit tệp nhãn khi nhãn do người thật gán. Tệp sai cấu trúc (mã lạ, trùng, tự chọn chính nó, không đủ 3 đến 5 mã) làm script dừng với mã thoát 2.
+
+### Giới hạn cần biết khi đọc số
+
+- Gợi ý của backend chỉ trả mã và tiêu đề quiz, bài học (không trả di sản của chúng); di sản của từng quiz, bài học được lấy từ kế hoạch dựng lớp của chính script.
+- Kết quả phụ thuộc cách dựng lớp (10 bài mỗi lớp, mỗi bài 4 di sản, mỗi di sản xuất hiện trong 2 bài) và cách backend xếp quiz theo hạn đóng trước độ khó (xem tùy chọn `--kieu-han-dong`).
+- Các đường cơ sở ngẫu nhiên được tính bằng giá trị kỳ vọng chính xác, không rút mẫu.
