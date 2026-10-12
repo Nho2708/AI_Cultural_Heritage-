@@ -233,7 +233,7 @@ Cần .NET SDK 9, SQL Server LocalDB, `sqlcmd` trong PATH, môi trường ảo `
 ```powershell
 pwsh -File scripts/danh-gia/chay-danh-gia.ps1                                    # đo cả hai phần, kết quả ở %TEMP%\dsvhvn-danhgia-<giờ>\ket-qua
 pwsh -File scripts/danh-gia/chay-danh-gia.ps1 -Phan di-san-lien-quan -Out D:\tam\dg
-pwsh -File scripts/danh-gia/chay-danh-gia.ps1 -Phan goi-y-ca-nhan -ThamSoHocSinh "--kieu-han-dong","cung-ngay"
+pwsh -File scripts/danh-gia/chay-danh-gia.ps1 -Phan goi-y-ca-nhan -ThamSoHocSinh "--kieu-han-dong=cung-ngay"
 pwsh -File scripts/danh-gia/chay-danh-gia.ps1 -Phan goi-y-ca-nhan -ThamSoHocSinh "--thu-nho"   # cỡ nhỏ (khoảng 1 phút) để thử đường đi
 ```
 
