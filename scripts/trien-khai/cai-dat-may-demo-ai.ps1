@@ -77,11 +77,30 @@ if (Test-Path -LiteralPath $pythonMay) {
 } elseif ($BoQuaPython) {
     Write-Warning "Bỏ qua cài Python (-BoQuaPython) nhưng chưa có $pythonMay; trien-khai-ai.ps1 sẽ cần -PythonGoc."
 } else {
-    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) { throw 'Không thấy winget. Cài Python 3.14 (64-bit, "Install for all users") rồi chạy lại với -BoQuaPython.' }
-    Write-Host 'Cài Python.Python.3.14 bằng winget (phạm vi máy)...'
-    $r = Invoke-Native winget @('install', '--id', 'Python.Python.3.14', '--exact', '--scope', 'machine', '--silent',
-        '--accept-package-agreements', '--accept-source-agreements', '--disable-interactivity') -ChoPhepLoi
-    if (-not (Test-Path -LiteralPath $pythonMay)) { throw "winget không cài được Python vào $pythonMay (mã $($r.Ma)): $($r.DauRa)" }
+    # Lấy gói NuGet chính thức của python.org rồi chép vào Program Files, không dùng bộ cài: máy đã có Python 3.14
+    # cùng phiên bản cài cho riêng người dùng thì bộ cài "cho mọi tài khoản" thất bại (mã 1603).
+    $banNuget = (Invoke-RestMethod 'https://api.nuget.org/v3-flatcontainer/python/index.json').versions |
+        Where-Object { $_ -match '^3\.14\.\d+$' } | Sort-Object { [version]$_ } | Select-Object -Last 1
+    if (-not $banNuget) { throw 'Không tìm thấy gói NuGet python 3.14.x. Cài Python 3.14 (64-bit, "Install for all users") rồi chạy lại với -BoQuaPython.' }
+    $thuGoi = Join-Path ([System.IO.Path]::GetTempPath()) ('python-' + [guid]::NewGuid().ToString('N'))
+    try {
+        New-Item -ItemType Directory -Path $thuGoi | Out-Null
+        $goi = Join-Path $thuGoi "python.$banNuget.zip"
+        Write-Host "Tải gói NuGet python $banNuget..."
+        Invoke-WebRequest "https://api.nuget.org/v3-flatcontainer/python/$banNuget/python.$banNuget.nupkg" -OutFile $goi
+        Expand-Archive -LiteralPath $goi -DestinationPath (Join-Path $thuGoi 'goi')
+        $nguon = Join-Path $thuGoi 'goi\tools'
+        $chuKy = Get-AuthenticodeSignature -LiteralPath (Join-Path $nguon 'python.exe')
+        if ($chuKy.Status -ne 'Valid' -or $chuKy.SignerCertificate.Subject -notmatch 'O=Python Software Foundation') {
+            throw "Chữ ký python.exe trong gói không hợp lệ ($($chuKy.Status), $($chuKy.SignerCertificate.Subject))."
+        }
+        Write-Host 'Chữ ký của Python Software Foundation hợp lệ.'
+        $dichPython = Split-Path -Parent $pythonMay
+        $r = Invoke-Native robocopy @($nguon, $dichPython, '/E', '/NFL', '/NDL', '/NJH', '/NJS', '/NP') -ChoPhepLoi
+        if ($r.Ma -ge 8) { throw "Chép Python vào $dichPython lỗi (robocopy mã $($r.Ma)): $($r.DauRa)" }
+    } finally {
+        Remove-Item -LiteralPath $thuGoi -Recurse -Force -ErrorAction SilentlyContinue
+    }
     Write-Host "Đã cài $pythonMay."
 }
 if (Test-Path -LiteralPath $pythonMay) {

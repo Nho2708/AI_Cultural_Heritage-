@@ -175,7 +175,7 @@ Mã nằm ở `C:\dsvhvn\ai` (bản trước ở `C:\dsvhvn\ai-truoc`), khoá �
 
 | Bước | Lệnh | Quyền |
 |---|---|---|
-| 1. Cài một lần: Python 3.14 cho mọi tài khoản (winget), app pool và site IIS, quyền, runner GitHub `may-demo-ai` | `pwsh -File scripts\trien-khai\cai-dat-may-demo-ai.ps1` | Quản trị, sau `cai-dat-may-demo.ps1` của repo backend |
+| 1. Cài một lần: Python 3.14 cho mọi tài khoản (chép từ gói NuGet chính thức của python.org vào `C:\Program Files\Python314`, kiểm chữ ký; không dùng bộ cài vì bộ cài thất bại khi máy đã có cùng phiên bản cài cho riêng người dùng), app pool và site IIS, quyền, runner GitHub `may-demo-ai` | `pwsh -File scripts\trien-khai\cai-dat-may-demo-ai.ps1` | Quản trị, sau `cai-dat-may-demo.ps1` của repo backend |
 | 2. Tạo `ai.env` từ `%APPDATA%\DSVHVN\ai-service.env` (chỉ biến `AI_*`, `GEMINI_*`, `ANTHROPIC_*`; đối chiếu khoá nội bộ với API, không in giá trị) | `pwsh -File scripts\trien-khai\tao-cau-hinh-ai.ps1` | Người dùng |
 | 3. Triển khai: gộp vào `main` thì workflow CD tự chạy; chạy tay từ thư mục repo khi runner tắt | `pwsh -File scripts\trien-khai\trien-khai-ai.ps1 -ThuMucGoi .` | Người dùng hoặc runner |
 | 4. Cho API gọi dịch vụ thật: `Ai:Mode=Remote`, `Ai:BaseUrl=http://127.0.0.1:8090` | Repo backend: `tao-cau-hinh-may-demo.ps1` rồi chạy lại CD của backend | Người dùng |
