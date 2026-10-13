@@ -1,8 +1,10 @@
 name: CI
 
+# Nhánh việc chỉ chạy CI qua Pull Request (mở ở dạng nháp nếu chưa xong): chạy thêm lượt push cho cùng commit thì
+# hai lượt cùng tên kiểm tra, một lượt hỏng ngẫu nhiên cũng chặn gộp.
 on:
   push:
-    branches: [main, "feature/**", "bugfix/**", "release/**"]
+    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
