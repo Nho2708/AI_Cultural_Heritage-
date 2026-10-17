@@ -1,0 +1,3 @@
+# Tệp dựng ảnh chạy trên Linux luôn giữ LF (core.autocrlf=true của Windows đổi sang CRLF).
+Dockerfile text eol=lf
+.dockerignore text eol=lf
