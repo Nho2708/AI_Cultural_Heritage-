@@ -25,7 +25,7 @@ Hợp đồng chi tiết nằm ở phía backend (`docs/bai-hoc-theo-cap.md`, `d
 ```
 app/
   main.py, asgi.py      tạo ứng dụng, kiểm khóa nội bộ, mã tương quan, log JSON
-  serve.py              điểm chạy dưới IIS trên máy demo (cổng lấy từ ASPNETCORE_PORT)
+  serve.py              điểm chạy dưới IIS trên máy demo (cổng lấy từ ASPNETCORE_PORT) và trong container (AI_HOST, AI_PORT)
   config.py             cấu hình (pydantic-settings), đọc .env
   api/routes.py         năm API và /health
   schemas/              kiểu yêu cầu, kết quả (JSON camelCase, khớp backend)
@@ -185,6 +185,15 @@ gỡ `app_offline.htm` rồi chờ `/health` trả 200 (tối đa 180 giây); h�
 để bắt gói chạy bị thiếu (test vẫn qua nhờ gói dev nên không tự phát hiện được).
 Đổi khoá (ví dụ khoá Gemini mới): sửa `%APPDATA%\DSVHVN\ai-service.env`, chạy lại bước 2 rồi bước 3.
 Hạn mức miễn phí của Gemini tính theo dự án Google, nên máy dev và máy demo dùng chung một khoá thì dùng chung 20 lượt mỗi ngày cho mỗi mô hình.
+
+## Triển khai lên máy chủ Google Cloud
+
+Máy chủ Google Cloud chạy dịch vụ trong container (ảnh dựng từ `Dockerfile`: Python 3.14, chỉ `requirements.txt` và `app/`, người dùng
+không phải root, nghe `0.0.0.0:8000` trong container, máy chủ chỉ mở ra `127.0.0.1:8090`). Khóa không nằm trong ảnh: Docker Compose
+nạp `/opt/dsvhvn/cau-hinh/ai.env` do `deploy/google-cloud/tao-cau-hinh-may-chu.ps1` của repo backend sinh (chỉ khóa của nhà cung
+cấp đang dùng, khóa nội bộ riêng của máy chủ). Biến repo `GCP_DEPLOY=true` thì CD dựng ảnh, đẩy lên Artifact Registry rồi chạy
+`/opt/dsvhvn/bin/trien-khai.sh ai <mã commit>` trên máy chủ (kiểm `/health`, hỏng thì trả bản trước). Cách cài máy chủ và vận hành:
+`deploy/google-cloud/README.md` của repo backend. Job `docker` trong CI dựng ảnh và chạy thử container.
 
 ## Chạy test
 

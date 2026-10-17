@@ -44,6 +44,37 @@ jobs:
       - name: Rà lỗ hổng gói phụ thuộc
         run: pip-audit -r requirements.txt
 
+  # Dựng ảnh Docker cho máy chủ Google Cloud rồi chạy thử: nghe ở 0.0.0.0 trong container, /health trả 200, chạy bằng người dùng
+  # không phải root, API khác /health vẫn đòi khóa nội bộ.
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - name: Dựng ảnh
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          tags: dsvhvn-ci/ai:ci
+          cache-from: type=gha,scope=ai
+          cache-to: type=gha,mode=max,scope=ai
+      - name: Chạy thử container
+        run: |
+          set -euo pipefail
+          docker run -d --name ai -p 127.0.0.1:8090:8000 -e AI_INTERNAL_KEY=kiem-anh -e AI_PROVIDER=gemini dsvhvn-ci/ai:ci
+          for _ in $(seq 1 30); do curl -fsS http://127.0.0.1:8090/health && break; sleep 1; done
+          echo
+          curl -fsS -o /dev/null http://127.0.0.1:8090/health
+          test "$(docker inspect -f '{{.Config.User}}' ai)" = dichvuai
+          ma=$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8090/v1/rank-related -H 'Content-Type: application/json' -d '{}')
+          echo "Gọi API không có khóa nội bộ: $ma"
+          test "$ma" = 401
+      - name: Nhật ký container khi hỏng
+        if: failure()
+        run: docker logs ai
+
   # Quét ký hiệu làm việc nội bộ trong mã, commit message và tên nhánh (cần toàn bộ lịch sử).
   ky-hieu:
     runs-on: ubuntu-latest

@@ -1,8 +1,9 @@
-"""Chạy dưới IIS trên máy demo: cổng do module của IIS cấp và tệp cấu hình chỉ định bằng AI_ENV_FILE."""
+"""Chạy dưới IIS trên máy demo (cổng do module của IIS cấp, tệp cấu hình chỉ định bằng AI_ENV_FILE) và trong container
+(địa chỉ nghe và cổng đặt bằng AI_HOST, AI_PORT)."""
 import pytest
 
 from app.config import Settings, env_files
-from app.serve import DEFAULT_PORT, port_from_env
+from app.serve import DEFAULT_HOST, DEFAULT_PORT, host_from_env, port_from_env
 
 
 def test_port_comes_from_iis_module():
@@ -14,10 +15,24 @@ def test_port_defaults_when_run_by_hand():
     assert port_from_env({"ASPNETCORE_PORT": "  "}) == DEFAULT_PORT
 
 
+def test_port_comes_from_container_variable():
+    assert port_from_env({"AI_PORT": "8000"}) == 8000
+    # Dưới IIS cổng của module luôn thắng.
+    assert port_from_env({"ASPNETCORE_PORT": "17321", "AI_PORT": "8000"}) == 17321
+
+
 @pytest.mark.parametrize("raw", ["0", "70000", "abc"])
 def test_port_rejects_invalid_values(raw):
     with pytest.raises(ValueError):
         port_from_env({"ASPNETCORE_PORT": raw})
+    with pytest.raises(ValueError):
+        port_from_env({"AI_PORT": raw})
+
+
+def test_host_listens_on_loopback_unless_container_asks():
+    assert host_from_env({}) == DEFAULT_HOST == "127.0.0.1"
+    assert host_from_env({"AI_HOST": " "}) == DEFAULT_HOST
+    assert host_from_env({"AI_HOST": "0.0.0.0"}) == "0.0.0.0"
 
 
 def test_explicit_env_file_has_highest_file_priority(tmp_path, monkeypatch):

@@ -1,0 +1,15 @@
+# Ảnh chỉ cần requirements.txt và thư mục app/.
+**/__pycache__
+**/*.pyc
+.git
+.github
+.venv
+.pytest_cache
+.ruff_cache
+.coverage
+htmlcov
+.env
+*.log
+.thu-that-ledger*.json
+scripts
+tests
