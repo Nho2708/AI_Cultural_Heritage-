@@ -95,14 +95,14 @@ def reason_of(factors: list[str], reference_name: str | None) -> str:
     return f"{first} với {reference_name}" if reference_name and reference_name.strip() else first
 
 
-def _best_reference_match(
+def _reference_matches(
     candidate: HeritageFeatures,
     references: list,
     similarities,
     candidate_index: int,
-) -> tuple[float, list[str], str | None] | None:
-    """Gi? nguy?n h?nh vi c?: ch?n tham chi?u c? ?i?m c? tr?ng s? cao nh?t."""
-    best: tuple[float, list[str], str | None] | None = None
+) -> list[tuple[float, list[str], str | None]]:
+    """Return valid weighted matches for one candidate."""
+    matches = []
 
     for reference_index, reference in enumerate(references):
         similarity = (
@@ -114,11 +114,14 @@ def _best_reference_match(
         if not factors:
             continue
 
-        weighted_score = score * reference.weight
-        if best is None or weighted_score > best[0]:
-            best = (weighted_score, factors, reference.heritage.name)
+        matches.append((
+            score * reference.weight,
+            factors,
+            reference.heritage.name,
+        ))
 
-    return best
+    matches.sort(key=lambda item: item[0], reverse=True)
+    return matches
 
 
 def rank_related(req: RankRequest) -> list[Related]:
@@ -133,15 +136,23 @@ def rank_related(req: RankRequest) -> list[Related]:
 
     results: list[Related] = []
     for candidate_index, candidate in enumerate(candidates):
-        best = _best_reference_match(
+        matches = _reference_matches(
             candidate, references, similarities, candidate_index
         )
-        if best is not None:
-            score, factors, reference_name = best
+        if matches:
+            best_score, factors, reference_name = matches[0]
+            other_scores = [match[0] for match in matches[1:]]
+            support_bonus = (
+                0.2 * sum(other_scores) / len(other_scores)
+                if other_scores
+                else 0.0
+            )
+            combined_score = best_score + support_bonus
+
             results.append(
                 Related(
                     heritage_id=candidate.id,
-                    score=round(score, 4),
+                    score=round(combined_score, 4),
                     reason=reason_of(factors, reference_name),
                 )
             )
