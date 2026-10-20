@@ -13,3 +13,5 @@ htmlcov
 .thu-that-ledger*.json
 scripts
 tests
+# Công cụ tạo giọng đọc chạy trên máy dev, không vào ảnh Docker.
+tools

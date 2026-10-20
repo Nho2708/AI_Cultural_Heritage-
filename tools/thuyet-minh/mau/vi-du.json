@@ -1,0 +1,46 @@
+{
+ "items": [
+  {
+   "heritageId": 1,
+   "slug": "khu-den-thap-my-son",
+   "name": "Khu đền tháp Mỹ Sơn",
+   "language": "vi",
+   "shortText": "Khu đền tháp Mỹ Sơn nằm trong một thung lũng kín ở Quảng Nam, cách Hội An khoảng 40 km về phía tây. Đây là quần thể đền tháp Chăm Pa được xây dựng liên tục từ thế kỷ IV đến thế kỷ XIII để thờ thần Shiva. Các nhà khảo cổ Pháp, trong đó có H. Parmentier, đã khảo sát khu di tích từ năm 1903–1904. Ngày 1/12/1999, UNESCO ghi danh Mỹ Sơn là Di sản văn hóa thế giới."
+  },
+  {
+   "heritageId": 2,
+   "slug": "van-mieu-quoc-tu-giam",
+   "name": "Văn Miếu – Quốc Tử Giám",
+   "language": "vi",
+   "shortText": "Văn Miếu – Quốc Tử Giám được dựng năm 1070 dưới thời vua Lý Thánh Tông tại TP. Hà Nội. Năm 1076, Quốc Tử Giám được lập bên cạnh, trở thành trường đại học đầu tiên của Việt Nam. Trong khuôn viên có 82 bia tiến sĩ khắc tên những người đỗ đạt từ năm 1442 đến năm 1779; UNESCO đã công nhận 82 bia này là Di sản tư liệu thế giới. Quyết định 548/QĐ-TTg xếp hạng nơi đây là di tích quốc gia đặc biệt."
+  },
+  {
+   "heritageId": 3,
+   "slug": "pho-co-hoi-an",
+   "name": "Hoi An Ancient Town",
+   "language": "en",
+   "shortText": "Hoi An Ancient Town is a remarkably well-preserved trading port on the central coast of Vietnam. From the 15th to the 19th century, merchants from Japan, China and Europe met here, and their houses, assembly halls and the famous Japanese Covered Bridge still line the narrow streets. Mr. Kazik, a Polish architect, helped lead its restoration in the 1980s. UNESCO inscribed Hoi An as a World Heritage Site in 1999."
+  },
+  {
+   "heritageId": 4,
+   "slug": "quan-the-di-tich-co-do-hue",
+   "name": "후에 기념물 복합지구",
+   "language": "ko",
+   "shortText": "후에는 1802년부터 1945년까지 베트남 마지막 왕조인 응우옌 왕조의 수도였습니다. 흐엉강을 따라 황성과 자금성, 왕릉과 사원이 산과 물의 흐름에 맞추어 배치되어 있습니다. 전쟁으로 많은 건물이 사라졌지만 응오몬 문과 태화전은 지금도 옛 모습을 전하고 있습니다. 1993년 유네스코는 후에 기념물 복합지구를 베트남 최초의 세계문화유산으로 등재했습니다."
+  },
+  {
+   "heritageId": 5,
+   "slug": "vinh-ha-long",
+   "name": "下龙湾",
+   "language": "zh",
+   "shortText": "下龙湾位于越南东北部广宁省，是北部湾沿岸的一片海域。这里散布着一千六百多座石灰岩岛屿和小岛，它们在数百万年的风化与海水侵蚀中形成了奇特的峰林和溶洞。传说中，天龙降临人间，吐出珍珠化作群岛，守护这片土地。一九九四年，联合国教科文组织将下龙湾列入世界自然遗产名录；二零二三年，该遗产扩展至吉婆群岛。"
+  },
+  {
+   "heritageId": 6,
+   "slug": "phong-nha-ke-bang",
+   "name": "フォンニャ・ケバン国立公園",
+   "language": "ja",
+   "shortText": "フォンニャ・ケバン国立公園は、ベトナム中部クアンビン省に広がるカルスト地帯です。約四億年前に形成された石灰岩の山々には、三百を超える洞窟が確認されており、その中には世界最大級の洞窟といわれるソンドン洞も含まれます。地下河川が流れるフォンニャ洞は舟で巡ることができます。二〇〇三年にユネスコの世界自然遺産に登録されました。"
+  }
+ ]
+}
