@@ -1,0 +1,9 @@
+{
+ "items": [
+  {"heritageId": 0, "slug": "kiem-vi", "language": "vi", "shortText": "Xin chào. Đây là bản kiểm tra máy đọc tiếng Việt, xếp hạng ngày 10/5/2012."},
+  {"heritageId": 0, "slug": "kiem-en", "language": "en", "shortText": "Hello. This is a test of the English narration voice."},
+  {"heritageId": 0, "slug": "kiem-ko", "language": "ko", "shortText": "안녕하세요. 한국어 음성 테스트입니다."},
+  {"heritageId": 0, "slug": "kiem-zh", "language": "zh", "shortText": "你好。这是中文语音测试。"},
+  {"heritageId": 0, "slug": "kiem-ja", "language": "ja", "shortText": "こんにちは。日本語の音声テストです。"}
+ ]
+}
