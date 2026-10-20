@@ -1,11 +1,13 @@
 """Tiến trình tạo thuyết minh (tools/thuyet-minh/tao_thuyet_minh.py) chạy trước một API quản trị giả bằng http.server:
 đăng nhập, lấy danh sách thiếu, gọi máy đọc (thay bằng bản giả), tải lên multipart, đăng nhập lại khi 401, bỏ qua khi 409,
-chạy lại chỉ dùng lại âm thanh đã có, chế độ cục bộ không mạng. Không cần gói nào ngoài thư viện chuẩn."""
+chạy lại chỉ dùng lại âm thanh đã có, chế độ cục bộ không mạng, chế độ lặp đến giờ chốt (đồng hồ giả, không nghỉ thật). Không cần gói nào ngoài thư viện chuẩn."""
 from __future__ import annotations
 
 import json
 import sys
 import threading
+import urllib.error
+from datetime import datetime
 from email.parser import BytesParser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -36,6 +38,7 @@ class TrangThai:
         self.tom_tat_doi: set[tuple[int, str]] = set()      # trả 409
         self.token_het_han: set[str] = set()                 # trả 401 khi PUT bằng token này
         self.het_han_mot_lan: tuple[int, str] | None = None  # di sản mà lần PUT đầu bằng token-1 bị 401
+        self.token_lay_het_han: set[str] = set()             # trả 401 khi lấy danh sách thiếu bằng token này
 
 
 class MayChuGia(BaseHTTPRequestHandler):
@@ -74,7 +77,7 @@ class MayChuGia(BaseHTTPRequestHandler):
         u = urlparse(self.path)
         if u.path != "/api/v1/admin/narrations/missing":
             return self._tra(404)
-        if self._token() not in {f"token-{i}" for i in range(1, tt.so_lan_dang_nhap + 1)}:
+        if self._token() not in {f"token-{i}" for i in range(1, tt.so_lan_dang_nhap + 1)} or self._token() in tt.token_lay_het_han:
             return self._tra(401)
         q = parse_qs(u.query)
         ngon_ngu, limit = q["language"][0], int(q["limit"][0])
@@ -298,3 +301,132 @@ def test_chuan_hoa_muc_tu_bam_va_nhan_zh_hans():
     assert m["heritageId"] == 7 and m["language"] == "zh" and m["voice"] == "melo-zh" and m["textHash"] == tao.bam("下龙湾。")
     with pytest.raises(ValueError):
         tao.chuan_hoa_muc({"id": 8, "language": "fr", "shortText": "x"})
+
+
+# ---- Chế độ lặp (--lap-den) ----
+
+class DongHoGia:
+    """Đồng hồ giả: ngu() chỉ cộng giờ, ghi số giây và gọi móc để test đổi dữ liệu giữa hai lượt."""
+
+    def __init__(self, bat_dau: str, moc=None):
+        self.t = datetime.strptime(bat_dau, "%Y-%m-%d %H:%M").timestamp()
+        self.moc = moc or (lambda lan, dong_ho: None)
+        self.giay_nghi: list[float] = []
+
+    def __call__(self) -> float:
+        return self.t
+
+    def ngu(self, giay: float) -> None:
+        self.giay_nghi.append(giay)
+        self.t += giay
+        self.moc(len(self.giay_nghi), self)
+
+
+def tham_so_lap(api: str, ra: Path, *them: str) -> list[str]:
+    return ["--api", api, "--ra", str(ra), "--username", "admin.vietnamheritage", *them]
+
+
+def test_lap_nhat_muc_moi_giua_hai_luot_ngon_ngu_sau_cho_tep_va_dung_som(may_chu, tmp_path, monkeypatch, capsys, mat_khau_an):
+    api, tt = may_chu
+    monkeypatch.setitem(TOM_TAT, (4, "ko"), "하롱베이는 석회암 섬으로 유명합니다.")
+    monkeypatch.setattr(tao, "chay_may_doc", may_doc_gia([]))
+    tep_duyet = tmp_path / "duyet-xong.txt"
+    da_tai_luc_nghi: list[set] = []
+
+    def moc(lan, dong_ho):
+        da_tai_luc_nghi.append(set(tt.da_tai))
+        if lan == 1:
+            monkeypatch.setitem(TOM_TAT, (6, "vi"), "Phố cổ Hội An có nhiều nhà gỗ. Chùa Cầu nằm ở phía tây.")   # xuất hiện sau
+            tt.token_lay_het_han.add("token-1")                                                  # phiên hết hạn giữa hai lượt
+        else:
+            tep_duyet.write_text("xong", encoding="utf-8")
+
+    dong_ho = DongHoGia("2026-10-20 22:00", moc)
+    ma = tao.main(tham_so_lap(api, tmp_path / "ra", "--languages", "vi,en,ko", "--lap-den", "2026-10-21 08:00",
+                              "--cho-tep", str(tep_duyet)), dong_ho=dong_ho, ngu=dong_ho.ngu)
+
+    assert ma == 0
+    assert set(tt.da_tai) == {(1, "vi"), (2, "vi"), (3, "en"), (6, "vi"), (4, "ko")}
+    # Nghỉ đúng hai lần 5 phút; lượt đầu đã xong vi và en, trước khi có tệp duyệt không có mục tiếng Hàn nào được tải
+    assert dong_ho.giay_nghi == [300, 300]
+    assert da_tai_luc_nghi[0] == {(1, "vi"), (2, "vi"), (3, "en")}
+    assert (4, "ko") not in da_tai_luc_nghi[1] and (6, "vi") in da_tai_luc_nghi[1]
+    # Dừng sớm khi đủ (còn xa giờ chốt); đăng nhập thêm một lần vì 401, mật khẩu chỉ hỏi một lần
+    assert dong_ho.t < datetime.strptime("2026-10-21 08:00", "%Y-%m-%d %H:%M").timestamp()
+    assert tt.so_lan_dang_nhap == 2 and len(mat_khau_an) == 1
+    nk = doc_nhat_ky(tmp_path / "ra")
+    assert [d["language"] for d in nk if d["buoc"] == "tải lên"] == ["vi", "vi", "en", "vi", "ko"]
+    ra = capsys.readouterr().out
+    assert "Lượt 1: vi thiếu 2 tải 2, en thiếu 1 tải 1, ko chờ tệp duyệt" in ra
+    assert "Dừng sau 6 lượt: mọi ngôn ngữ đã đủ." in ra
+    assert MAT_KHAU not in ra and "token-" not in "".join(",".join(d.values()) for d in nk)
+
+
+def test_lap_dung_o_gio_chot_khi_tep_duyet_khong_co(may_chu, tmp_path, monkeypatch, capsys, mat_khau_an):
+    api, tt = may_chu
+    monkeypatch.setitem(TOM_TAT, (4, "ko"), "하롱베이는 석회암 섬으로 유명합니다.")
+    monkeypatch.setattr(tao, "chay_may_doc", may_doc_gia([]))
+    dong_ho = DongHoGia("2026-10-20 23:55")
+
+    ma = tao.main(tham_so_lap(api, tmp_path, "--languages", "vi,en,ko", "--lap-den", "2026-10-21 00:12",
+                              "--cho-tep", str(tmp_path / "khong-co.txt")), dong_ho=dong_ho, ngu=dong_ho.ngu)
+
+    assert ma == 0
+    assert set(tt.da_tai) == {(1, "vi"), (2, "vi"), (3, "en")}          # tiếng Hàn chưa bao giờ bị đụng tới
+    assert dong_ho.giay_nghi == [300, 300, 300, 120]                    # lần cuối chỉ nghỉ tới đúng giờ chốt
+    assert dong_ho.t == datetime.strptime("2026-10-21 00:12", "%Y-%m-%d %H:%M").timestamp()
+    assert "Dừng sau 5 lượt: hết giờ." in capsys.readouterr().out
+
+
+def test_lap_het_gio_giua_chung_thi_khong_mo_lo_moi_nhung_van_tai_phan_da_tao(may_chu, tmp_path, monkeypatch, capsys, mat_khau_an):
+    api, tt = may_chu
+    monkeypatch.setattr(tao, "LO_TOI_DA", 1)
+    dong_ho = DongHoGia("2026-10-20 23:50")
+    goi_lai: list = []
+    may_doc = may_doc_gia(goi_lai)
+
+    def may_doc_cham(dong_co, tep_viec, cau_hinh):
+        dong_ho.t += 600                                                # mỗi lô mất 10 phút: lô đầu làm qua 00:00
+        return may_doc(dong_co, tep_viec, cau_hinh)
+    monkeypatch.setattr(tao, "chay_may_doc", may_doc_cham)
+
+    ma = tao.main(tham_so_lap(api, tmp_path, "--languages", "vi", "--lap-den", "2026-10-21 00:00"),
+                  dong_ho=dong_ho, ngu=dong_ho.ngu)
+
+    assert ma == 0
+    assert len(goi_lai) == 1 and set(tt.da_tai) == {(1, "vi")}          # mục 2 để lại; mục 1 đã tạo thì vẫn tải xong
+    assert dong_ho.giay_nghi == []
+    assert "Dừng sau 1 lượt: hết giờ." in capsys.readouterr().out
+
+
+def test_lap_mang_chap_chon_thi_nghi_roi_thu_lai(may_chu, tmp_path, monkeypatch, capsys, mat_khau_an):
+    api, tt = may_chu
+    monkeypatch.setattr(tao, "chay_may_doc", may_doc_gia([]))
+    lay_that = tao.KhachApi.lay_thieu
+    loi_mot_lan = [True]
+
+    def lay_hong(self, ngon_ngu, limit):
+        if loi_mot_lan:
+            loi_mot_lan.pop()
+            raise urllib.error.URLError("mất mạng")
+        return lay_that(self, ngon_ngu, limit)
+    monkeypatch.setattr(tao.KhachApi, "lay_thieu", lay_hong)
+    dong_ho = DongHoGia("2026-10-20 22:00")
+
+    ma = tao.main(tham_so_lap(api, tmp_path, "--languages", "vi", "--lap-den", "2026-10-21 08:00", "--nghi", "1"),
+                  dong_ho=dong_ho, ngu=dong_ho.ngu)
+
+    assert ma == 0 and set(tt.da_tai) == {(1, "vi"), (2, "vi")} and dong_ho.giay_nghi == [60]
+    ra = capsys.readouterr().out
+    assert "Lượt 1: lỗi mạng" in ra and "Dừng sau 3 lượt: mọi ngôn ngữ đã đủ." in ra
+
+
+def test_tham_so_lap_sai_thi_bao_loi_va_mac_dinh_ngon_ngu_sau(tmp_path):
+    for sai in (["--lap-den", "21/10/2026 08:00"], ["--lap-den", "2026-10-21 08:00", "--dry-run"],
+                ["--lap-den", "2026-10-21 08:00", "--cuc-bo", "x.json"], ["--ngon-ngu-sau", "ko"],
+                ["--cho-tep", "x", "--ngon-ngu-sau", "fr"], ["--nghi", "0"]):
+        with pytest.raises(SystemExit):
+            tao.doc_tham_so(sai)
+    a = tao.doc_tham_so(["--cho-tep", str(tmp_path / "x")])
+    assert a.ngon_ngu_sau == ["ko", "zh", "ja"] and a.lap_den is None and a.nghi == 5
+    assert tao.doc_tham_so([]).ngon_ngu_sau == []

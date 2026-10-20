@@ -53,6 +53,24 @@ Máy chủ trả 409 (tóm tắt đã đổi sau khi lấy danh sách) thì bỏ
 **Chạy lại được:** máy chủ chỉ trả tóm tắt còn thiếu; âm thanh đã tạo nằm ở `ra/am-thanh/<textHash>__<voice>.mp3|.json`
 nên tải lên hỏng không phải tạo lại. Mỗi lượt ghi một tệp `ra/nhat-ky/<thời điểm>.csv` (bước tạo / tải lên, kết quả, giây tạo, thời lượng).
 
+## Chạy qua đêm
+
+Khi quản trị viên còn đang duyệt tóm tắt ở nơi khác, cho công cụ chạy không người trông sau một lần nhập mật khẩu:
+
+```powershell
+python tao_thuyet_minh.py --lap-den "2026-10-21 08:00" --cho-tep <đường dẫn>\duyet-xong.txt
+```
+
+- `--lap-den "YYYY-MM-DD HH:MM"` (giờ máy này): lặp lượt. Lượt vừa rồi có tạo hoặc tải được gì thì làm lượt kế ngay; không có gì thì nghỉ
+  `--nghi` phút (mặc định 5) rồi lấy lại danh sách thiếu. Qua giờ chốt thì không bắt đầu mục mới (mục đang làm được làm nốt, âm thanh
+  đã tạo vẫn được tải lên), rồi in dòng tóm tắt và thoát. Không có `--lap-den` thì chạy một lượt như trước.
+- `--cho-tep TEP` và `--ngon-ngu-sau` (mặc định `ko,zh,ja`): các ngôn ngữ này chỉ được làm khi tệp `TEP` đã có, vì bản tiếng Hàn, Trung,
+  Nhật được dịch lại mỗi khi bản tiếng Anh được duyệt, làm trước thì âm thanh sẽ cũ. Mỗi lượt làm theo thứ tự `--languages` (vi, en trước).
+  Tạo tệp báo hiệu bằng lệnh bất kỳ khi đã duyệt xong, ví dụ `New-Item <đường dẫn>\duyet-xong.txt`.
+- Thoát sớm: khi tệp `TEP` đã có (hoặc không dùng `--cho-tep`) và một lượt đầy đủ không còn tóm tắt nào thiếu thuyết minh.
+- Mỗi lượt in một dòng (giờ, số thiếu và số đã tải theo từng ngôn ngữ) và ghi vào cùng một tệp nhật ký CSV của lần chạy. Mất mạng giữa
+  chừng thì nghỉ rồi thử lại. Đăng nhập một lần, tự đăng nhập lại khi 401 bằng mật khẩu trong bộ nhớ; không ghi mật khẩu hay token ra đâu.
+
 ## Mất bao lâu
 
 Đo trên i5-12450HX (CPU, fp32): tỷ lệ thời gian tạo / thời lượng âm thanh (RTF) ≈ 0,45 với VieNeu và ≈ 0,52 với MeloTTS,

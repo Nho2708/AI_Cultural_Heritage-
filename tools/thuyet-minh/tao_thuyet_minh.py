@@ -10,6 +10,10 @@ và giọng) nên tải lên hỏng không phải tạo lại. Mật khẩu ch�
   python tao_thuyet_minh.py                       # hỏi tên đăng nhập, mật khẩu rồi làm 5 ngôn ngữ
   python tao_thuyet_minh.py --dry-run             # chỉ liệt kê phần còn thiếu
   python tao_thuyet_minh.py --cuc-bo mau/vi-du.json --ra ../../ra-thu   # không mạng: đọc mục từ tệp, ghi ra thư mục
+
+Chạy qua đêm không người trông: --lap-den lặp lượt đến giờ chốt, đăng nhập một lần; ngôn ngữ trong --ngon-ngu-sau (Hàn, Trung,
+Nhật) chỉ làm khi tệp --cho-tep đã có, vì bản dịch của chúng đổi theo bản tiếng Anh được duyệt:
+  python tao_thuyet_minh.py --lap-den "2026-10-21 08:00" --cho-tep duyet-xong.txt
 """
 from __future__ import annotations
 
@@ -27,6 +31,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import datetime
 from pathlib import Path
 
 THU_MUC = Path(__file__).resolve().parent
@@ -36,6 +41,8 @@ from chuan_hoa_vi import chuan_hoa_doan
 
 API_MAC_DINH = "https://34.124.169.74/api/v1"
 NGON_NGU_MAC_DINH = "vi,en,ko,zh,ja"
+NGON_NGU_SAU_MAC_DINH = "ko,zh,ja"
+LO_TOI_DA = 20          # chế độ lặp: mỗi lần gọi máy đọc tối đa ngần này mục, hết giờ thì không mở lô mới
 TEN_DANG_NHAP_MAC_DINH = "admin.vietnamheritage"
 GIONG = {"vi": "vieneu-mai-anh", "en": "melo-en-us", "ko": "melo-kr", "zh": "melo-zh", "ja": "melo-jp"}
 DONG_CO = {"vieneu-mai-anh": "vieneu", "melo-en-us": "melo", "melo-kr": "melo", "melo-zh": "melo", "melo-jp": "melo"}
@@ -117,30 +124,43 @@ def chay_may_doc(dong_co: str, tep_viec: Path, cau_hinh: dict) -> int:
                           check=False).returncode
 
 
-def tao_am_thanh(ra: Path, muc_can_tao: list[dict], cau_hinh: dict, nhat_ky: NhatKy) -> None:
-    """Gom mục theo máy đọc, mỗi máy chạy một lần (nạp mô hình một lần), ghi kết quả từng mục vào nhật ký."""
+def tao_am_thanh(ra: Path, muc_can_tao: list[dict], cau_hinh: dict, nhat_ky: NhatKy, het_gio=None) -> set[str]:
+    """Gom mục theo máy đọc, mỗi máy chạy một lần (nạp mô hình một lần), ghi kết quả từng mục vào nhật ký.
+
+    Có het_gio (chế độ lặp) thì chia lô <= LO_TOI_DA mục và hết giờ là không mở lô mới; trả khóa các mục bị bỏ lại."""
     theo_dong_co: dict[str, dict[str, dict]] = {}
     for muc in muc_can_tao:
         theo_dong_co.setdefault(DONG_CO[muc["voice"]], {}).setdefault(khoa_cache(muc), muc)
     (ra / "viec").mkdir(parents=True, exist_ok=True)
+    bo_lai: set[str] = set()
     for dong_co, cac_muc in theo_dong_co.items():
-        tep_viec = ra / "viec" / f"{time.strftime('%Y%m%d-%H%M%S')}-{dong_co}.json"
-        items = []
-        for khoa, muc in cac_muc.items():
-            mp3, js = tep_cache(ra, muc)
-            items.append({"key": khoa, "language": muc["language"], "voice": muc["voice"],
-                          "sentences": chuan_bi_cau(muc["shortText"], muc["language"]), "mp3": str(mp3), "json": str(js)})
-        tep_viec.write_text(json.dumps({"engine": dong_co, "items": items}, ensure_ascii=False, indent=1), encoding="utf-8")
-        print(f"\nMáy đọc {dong_co}: {len(items)} mục")
-        t0 = time.perf_counter()
-        ma = chay_may_doc(dong_co, tep_viec, cau_hinh)
-        tep_kq = Path(str(tep_viec) + ".ket-qua.json")
-        ket_qua = json.loads(tep_kq.read_text(encoding="utf-8")) if tep_kq.is_file() else {}
-        for khoa, muc in cac_muc.items():
-            kq = ket_qua.get(khoa) or {"ok": False, "error": f"máy đọc thoát mã {ma}, không có kết quả"}
-            nhat_ky.ghi(muc, "tạo", "ok" if kq["ok"] else "lỗi", durationMs=kq.get("durationMs", ""),
-                        giay_tao=kq.get("generationSeconds", ""), tep=tep_cache(ra, muc)[0].name, ghi_chu=kq.get("error", ""))
-        print(f"Máy đọc {dong_co} xong sau {time.perf_counter() - t0:.0f} s (mã thoát {ma})")
+        khoa_het = list(cac_muc)
+        cac_lo = [khoa_het] if het_gio is None else [khoa_het[i:i + LO_TOI_DA] for i in range(0, len(khoa_het), LO_TOI_DA)]
+        for so_lo, khoa_lo in enumerate(cac_lo):
+            if het_gio is not None and het_gio():
+                bo_lai.update(khoa_lo)
+                continue
+            hau = f"-{so_lo}" if so_lo else ""
+            tep_viec = ra / "viec" / f"{time.strftime('%Y%m%d-%H%M%S')}-{dong_co}{hau}.json"
+            items = []
+            for khoa in khoa_lo:
+                muc = cac_muc[khoa]
+                mp3, js = tep_cache(ra, muc)
+                items.append({"key": khoa, "language": muc["language"], "voice": muc["voice"],
+                              "sentences": chuan_bi_cau(muc["shortText"], muc["language"]), "mp3": str(mp3), "json": str(js)})
+            tep_viec.write_text(json.dumps({"engine": dong_co, "items": items}, ensure_ascii=False, indent=1), encoding="utf-8")
+            print(f"\nMáy đọc {dong_co}: {len(items)} mục")
+            t0 = time.perf_counter()
+            ma = chay_may_doc(dong_co, tep_viec, cau_hinh)
+            tep_kq = Path(str(tep_viec) + ".ket-qua.json")
+            ket_qua = json.loads(tep_kq.read_text(encoding="utf-8")) if tep_kq.is_file() else {}
+            for khoa in khoa_lo:
+                muc = cac_muc[khoa]
+                kq = ket_qua.get(khoa) or {"ok": False, "error": f"máy đọc thoát mã {ma}, không có kết quả"}
+                nhat_ky.ghi(muc, "tạo", "ok" if kq["ok"] else "lỗi", durationMs=kq.get("durationMs", ""),
+                            giay_tao=kq.get("generationSeconds", ""), tep=tep_cache(ra, muc)[0].name, ghi_chu=kq.get("error", ""))
+            print(f"Máy đọc {dong_co} xong sau {time.perf_counter() - t0:.0f} s (mã thoát {ma})")
+    return bo_lai
 
 
 # ---- API quản trị ----
@@ -258,6 +278,12 @@ def doc_tham_so(argv: list[str] | None) -> argparse.Namespace:
     ap.add_argument("--hf-home", default=str(THU_MUC / ".cache" / "hf"), help="thư mục cache mô hình Hugging Face")
     ap.add_argument("--ca", help="tệp PEM chứa chứng chỉ gốc tin cậy thêm (vẫn kiểm chứng TLS)")
     ap.add_argument("--timeout", type=float, default=120, help="giây chờ mỗi lần gọi API")
+    ap.add_argument("--lap-den", metavar="'YYYY-MM-DD HH:MM'",
+                    help="chạy không người trông: lặp lượt đến giờ máy này rồi dừng (không bắt đầu mục mới sau giờ chốt)")
+    ap.add_argument("--nghi", type=float, default=5, help="phút nghỉ giữa hai lượt khi lượt vừa rồi không làm được gì (mặc định 5)")
+    ap.add_argument("--cho-tep", metavar="TEP", help="tệp báo duyệt xong; chưa có tệp thì bỏ qua các ngôn ngữ của --ngon-ngu-sau")
+    ap.add_argument("--ngon-ngu-sau", help=f"ngôn ngữ chỉ làm khi --cho-tep đã có, vì bản dịch đổi theo bản tiếng Anh được duyệt "
+                                           f"(mặc định {NGON_NGU_SAU_MAC_DINH} nếu có --cho-tep)")
     a = ap.parse_args(argv)
     a.languages = [n.strip().lower() for n in a.languages.split(",") if n.strip()]
     la = [n for n in a.languages if n not in GIONG]
@@ -265,6 +291,22 @@ def doc_tham_so(argv: list[str] | None) -> argparse.Namespace:
         ap.error(f"ngôn ngữ không hỗ trợ: {', '.join(la)} (chỉ {', '.join(GIONG)})")
     if not 1 <= a.limit <= 1000:
         ap.error("--limit phải trong 1..1000")
+    if a.ngon_ngu_sau and not a.cho_tep:
+        ap.error("--ngon-ngu-sau cần đi kèm --cho-tep")
+    a.ngon_ngu_sau = [n.strip().lower() for n in (a.ngon_ngu_sau or (NGON_NGU_SAU_MAC_DINH if a.cho_tep else "")).split(",")
+                      if n.strip()]
+    sai = [n for n in a.ngon_ngu_sau if n not in GIONG]
+    if sai:
+        ap.error(f"ngôn ngữ không hỗ trợ trong --ngon-ngu-sau: {', '.join(sai)} (chỉ {', '.join(GIONG)})")
+    if a.nghi <= 0:
+        ap.error("--nghi phải lớn hơn 0")
+    if a.lap_den is not None:
+        try:
+            a.lap_den = datetime.strptime(a.lap_den.strip(), "%Y-%m-%d %H:%M").timestamp()   # giờ máy, không múi giờ
+        except ValueError:
+            ap.error('--lap-den phải có dạng "YYYY-MM-DD HH:MM" (giờ máy này)')
+        if a.cuc_bo or a.dry_run:
+            ap.error("--lap-den không dùng cùng --cuc-bo hoặc --dry-run")
     return a
 
 
@@ -276,52 +318,57 @@ def doc_muc_cuc_bo(tep: Path, ngon_ngu: list[str]) -> list[dict]:
     return [m for m in muc if m["language"] in ngon_ngu]
 
 
-def main(argv: list[str] | None = None) -> int:
-    a = doc_tham_so(argv)
-    ra = Path(a.ra)
-    cau_hinh = {"python": {"vieneu": a.python_vieneu, "melo": a.python_melo}, "hf_home": Path(a.hf_home)}
-    api: KhachApi | None = None
-
-    if a.cuc_bo:
-        muc = doc_muc_cuc_bo(Path(a.cuc_bo), a.languages)
-        print(f"Chế độ cục bộ: {len(muc)} mục từ {a.cuc_bo}, không gọi mạng.")
-    else:
-        ten = a.username or input(f"Tên đăng nhập [{TEN_DANG_NHAP_MAC_DINH}]: ").strip() or TEN_DANG_NHAP_MAC_DINH
-        mat_khau = getpass.getpass(f"Mật khẩu của {ten}: ")
-        api = KhachApi(a.api, a.timeout, a.ca)
-        api.dang_nhap(ten, mat_khau)
-        del mat_khau
-        muc = []
-        for ngon_ngu in a.languages:
-            items, tong = api.lay_thieu(ngon_ngu, a.limit)
+def thu_thap_muc(a: argparse.Namespace, api: KhachApi, cho_xong: bool) -> tuple[list[dict], dict[str, int | None]]:
+    """Mục còn thiếu của từng ngôn ngữ theo thứ tự --languages; ngôn ngữ sau mà chưa có tệp báo duyệt thì bỏ qua (None)."""
+    muc: list[dict] = []
+    thieu: dict[str, int | None] = {}
+    for ngon_ngu in a.languages:
+        if not cho_xong and ngon_ngu in a.ngon_ngu_sau:
+            thieu[ngon_ngu] = None
+            if a.lap_den is None:
+                print(f"{ngon_ngu}: chờ tệp {a.cho_tep}, chưa làm")
+            continue
+        items, tong = api.lay_thieu(ngon_ngu, a.limit)
+        thieu[ngon_ngu] = tong
+        if a.lap_den is None:
             print(f"{ngon_ngu}: còn thiếu {tong}, lấy {len(items)} mục")
-            muc.extend(chuan_hoa_muc(m) for m in items)
+        muc.extend(chuan_hoa_muc(m) for m in items)
+    return muc, thieu
 
+
+def lam_mot_luot(a: argparse.Namespace, ra: Path, cau_hinh: dict, api: KhachApi | None, muc: list[dict], lay_nhat_ky,
+                 het_gio=None) -> dict:
+    """Một lượt: liệt kê, tạo âm thanh còn thiếu, tải lên. Trả số mục tạo được, tải được, lỗi (tạo hoặc tải)."""
+    kq_luot = {"tao": 0, "tai": 0, "loi": 0, "tai_theo_ngon_ngu": {}}
     if not muc:
-        print("Không có gì để làm.")
-        return 0
+        if a.lap_den is None:
+            print("Không có gì để làm.")
+        return kq_luot
     da_co = {khoa_cache(m) for m in muc if doc_cache(ra, m)}
     for m in muc:
         print(f"  [{m['language']}] {m['heritageId']} {m['slug']}  {len(m['shortText'])} ký tự"
               f"{'  (đã có âm thanh)' if khoa_cache(m) in da_co else ''}")
     if a.dry_run:
         print(f"\nTổng {len(muc)} mục, {len(da_co)} đã có âm thanh trong {ra / 'am-thanh'}.")
-        return 0
+        return kq_luot
 
-    nhat_ky = NhatKy(ra / "nhat-ky" / f"{time.strftime('%Y%m%d-%H%M%S')}.csv")
+    nhat_ky = lay_nhat_ky()
     can_tao = [m for m in muc if khoa_cache(m) not in da_co]
+    bo_lai: set[str] = set()
     if can_tao:
-        tao_am_thanh(ra, can_tao, cau_hinh, nhat_ky)
+        bo_lai = tao_am_thanh(ra, can_tao, cau_hinh, nhat_ky, het_gio)
+        kq_luot["tao"] = sum(1 for m in can_tao if khoa_cache(m) not in bo_lai and doc_cache(ra, m))
     else:
         print("Mọi mục đã có âm thanh, chỉ tải lên.")
 
     print()
-    loi = 0
     for m in muc:
+        if khoa_cache(m) in bo_lai:
+            continue                                  # hết giờ trước khi tạo: để lượt sau
         kq = doc_cache(ra, m)
         mp3 = tep_cache(ra, m)[0]
         if kq is None:
-            loi += 1
+            kq_luot["loi"] += 1
             continue                                  # đã ghi lỗi ở bước tạo
         if api is None:
             dich = ra / "cuc-bo" / f"{m['slug'] or m['heritageId']}__{m['language']}"
@@ -334,16 +381,85 @@ def main(argv: list[str] | None = None) -> int:
         if trang_thai == 200:
             nhat_ky.ghi(m, "tải lên", "ok", durationMs=kq["durationMs"], tep=mp3.name)
             print(f"  đã tải [{m['language']}] {m['slug']}")
+            kq_luot["tai"] += 1
+            kq_luot["tai_theo_ngon_ngu"][m["language"]] = kq_luot["tai_theo_ngon_ngu"].get(m["language"], 0) + 1
         elif trang_thai == 409:
             nhat_ky.ghi(m, "tải lên", "bỏ qua: tóm tắt đã đổi", durationMs=kq["durationMs"], tep=mp3.name, ghi_chu=thong_bao)
             print(f"  bỏ qua [{m['language']}] {m['slug']}: tóm tắt đã đổi (409), lần chạy sau sẽ tạo lại")
         else:
-            loi += 1
+            kq_luot["loi"] += 1
             nhat_ky.ghi(m, "tải lên", "lỗi", durationMs=kq["durationMs"], tep=mp3.name, ghi_chu=f"{trang_thai} {thong_bao}")
             print(f"  lỗi [{m['language']}] {m['slug']}: {trang_thai} {thong_bao}")
+    return kq_luot
 
-    print("\nTóm tắt: " + "; ".join(f"{k} {v}" for k, v in nhat_ky.dem.items()) + f". Nhật ký: {nhat_ky.tep}")
-    return 1 if loi else 0
+
+def dong_tien_do(so_luot: int, thieu: dict[str, int | None], kq: dict) -> str:
+    """Một dòng ngắn cho mỗi lượt: giờ, số còn thiếu và số đã tải theo từng ngôn ngữ."""
+    phan = [f"{n} chờ tệp duyệt" if t is None else f"{n} thiếu {t} tải {kq['tai_theo_ngon_ngu'].get(n, 0)}"
+            for n, t in thieu.items()]
+    return (f"[{time.strftime('%H:%M:%S')}] Lượt {so_luot}: " + ", ".join(phan)
+            + f" | tạo {kq['tao']}, tải {kq['tai']}, lỗi {kq['loi']}")
+
+
+def main(argv: list[str] | None = None, *, dong_ho=time.time, ngu=time.sleep) -> int:
+    """dong_ho và ngu (giờ hiện tại tính bằng giây, hàm nghỉ) chỉ để test thay bằng đồng hồ giả."""
+    a = doc_tham_so(argv)
+    ra = Path(a.ra)
+    cau_hinh = {"python": {"vieneu": a.python_vieneu, "melo": a.python_melo}, "hf_home": Path(a.hf_home)}
+    api: KhachApi | None = None
+    muc_cuc_bo: list[dict] = []
+
+    if a.cuc_bo:
+        muc_cuc_bo = doc_muc_cuc_bo(Path(a.cuc_bo), a.languages)
+        print(f"Chế độ cục bộ: {len(muc_cuc_bo)} mục từ {a.cuc_bo}, không gọi mạng.")
+    else:
+        ten = a.username or input(f"Tên đăng nhập [{TEN_DANG_NHAP_MAC_DINH}]: ").strip() or TEN_DANG_NHAP_MAC_DINH
+        mat_khau = getpass.getpass(f"Mật khẩu của {ten}: ")
+        api = KhachApi(a.api, a.timeout, a.ca)
+        api.dang_nhap(ten, mat_khau)
+        del mat_khau                                  # KhachApi giữ bản trong bộ nhớ để đăng nhập lại khi 401, qua mọi lượt
+
+    nhat_ky: list[NhatKy] = []                        # tạo ở lần cần đầu tiên; cả lần chạy dùng chung một tệp CSV
+
+    def lay_nhat_ky() -> NhatKy:
+        if not nhat_ky:
+            nhat_ky.append(NhatKy(ra / "nhat-ky" / f"{time.strftime('%Y%m%d-%H%M%S')}.csv"))
+        return nhat_ky[0]
+
+    lap = a.lap_den is not None
+    het_gio = (lambda: dong_ho() >= a.lap_den) if lap else None
+    so_luot, ly_do, kq = 0, "hết giờ", {"loi": 0}
+    while not (lap and het_gio()):                    # lặp: hết giờ thì không bắt đầu lượt mới
+        so_luot += 1
+        chot = not a.cho_tep or Path(a.cho_tep).exists()   # chụp một lần đầu lượt: tệp xuất hiện giữa lượt thì lượt sau mới làm
+        thieu: dict[str, int | None] = {}
+        muc = muc_cuc_bo
+        try:
+            if api is not None:
+                muc, thieu = thu_thap_muc(a, api, chot)
+            kq = lam_mot_luot(a, ra, cau_hinh, api, muc, lay_nhat_ky, het_gio)
+        except OSError as e:                          # mạng chập chờn lúc không người trông: nghỉ rồi thử lại
+            if not lap:
+                raise
+            muc, kq = [], {"tao": 0, "tai": 0, "loi": 1, "tai_theo_ngon_ngu": {}}
+            print(f"[{time.strftime('%H:%M:%S')}] Lượt {so_luot}: lỗi mạng ({e}), nghỉ rồi thử lại")
+        else:
+            if not lap:
+                if a.dry_run:
+                    return 0
+                break
+            print(dong_tien_do(so_luot, thieu, kq))
+            if chot and not muc and all(t == 0 for t in thieu.values()):
+                ly_do = "mọi ngôn ngữ đã đủ"
+                break
+        if kq["tao"] + kq["tai"] == 0 and not het_gio():
+            ngu(min(a.nghi * 60, a.lap_den - dong_ho()))
+
+    if nhat_ky:
+        print("\nTóm tắt: " + "; ".join(f"{k} {v}" for k, v in nhat_ky[0].dem.items()) + f". Nhật ký: {nhat_ky[0].tep}")
+    if lap:
+        print(f"Dừng sau {so_luot} lượt: {ly_do}.")
+    return 1 if kq["loi"] else 0
 
 
 if __name__ == "__main__":
