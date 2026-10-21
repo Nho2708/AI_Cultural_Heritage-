@@ -32,8 +32,30 @@ def lam_sach(mau: str, voice: str) -> str:
     của từng ngôn ngữ đọc được (chữ hiển thị và mốc câu không đổi vì vẫn tạo theo từng câu)."""
     sach = mau if voice == "melo-en-us" else _NGOAC_LATIN.sub("", mau)
     sach = _CHU_LATIN.sub(_bo_dau, sach)  # chỉ đụng chữ Latin: dấu của kana (が) cũng là dấu kết hợp, không được bỏ
+    if voice == "melo-jp":
+        sach = "".join(_AM_CHU_HAN_HIEM.get(c, c) for c in sach)
     sach = re.sub(r"\s+", " ", sach).strip()
     return sach or mau
+
+
+# Chữ Hán trong tên riêng mà bộ đọc tiếng Nhật của MeloTTS không có cách đọc (gặp là dừng): thay bằng âm On.
+_AM_CHU_HAN_HIEM = {"雒": "ラク", "漳": "ショウ"}
+
+
+def doc_an_toan(doc, mau: str):
+    """Bộ đọc tiếng Nhật báo AssertionError((chữ không đọc được, ...)) khi gặp chữ Hán lạ ngoài bảng trên:
+    bỏ các chữ đó rồi đọc lại một lần, để cả bài không hỏng vì một chữ."""
+    try:
+        return doc(mau)
+    except AssertionError as e:
+        chi_tiet = e.args[0] if e.args else None
+        chu_la = chi_tiet[0] if isinstance(chi_tiet, tuple) and chi_tiet and isinstance(chi_tiet[0], list) else None
+        if not chu_la:
+            raise
+        bot = "".join(c for c in mau if c not in set(chu_la))
+        if not bot.strip() or bot == mau:
+            raise
+        return doc(bot)
 
 
 _CHU_LATIN = re.compile(r"[A-Za-zÀ-ỹĐđ]+")
@@ -65,7 +87,9 @@ def main() -> int:
             print(f"MeloTTS {ma_ngon_ngu}: nạp mô hình {time.perf_counter() - t0:.1f} s, {sr} Hz", flush=True)
             da_nap[ma_ngon_ngu] = (mo_hinh, spk, sr)
         mo_hinh, spk, sr = da_nap[ma_ngon_ngu]
-        return (lambda mau: np.asarray(mo_hinh.tts_to_file(lam_sach(mau, voice), spk, None, speed=1.0, quiet=True), dtype=np.float32)), sr
+        def doc(chu: str):
+            return mo_hinh.tts_to_file(chu, spk, None, speed=1.0, quiet=True)
+        return (lambda mau: np.asarray(doc_an_toan(doc, lam_sach(mau, voice)), dtype=np.float32)), sr
 
     return chay(sys.argv[1], lay_may_doc)
 
