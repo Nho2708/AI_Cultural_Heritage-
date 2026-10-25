@@ -33,6 +33,7 @@ _REFUSED_FINISH = {"SAFETY", "RECITATION", "BLOCKLIST", "PROHIBITED_CONTENT", "S
 REST_RATE_LIMITED = 60.0
 REST_OVERLOADED = 30.0
 REST_NOT_FOUND = 3600.0
+REST_TIMEOUT = 60.0
 
 
 def _usage_of(body: dict) -> TokenUsage:
@@ -93,6 +94,7 @@ class GeminiLlm:
         body: dict | None = None
         last_status = 0
         reconfigured = 0  # số lần đổi cách gửi (bỏ lược đồ, bỏ mức suy nghĩ) cho cùng mô hình
+        deadline = time.monotonic() + timeout
         while queue and body is None:
             model = queue[0]
             try:
@@ -100,15 +102,38 @@ class GeminiLlm:
                     f"{BASE_URL}/models/{model}:generateContent",
                     headers={"x-goog-api-key": self._key, "Content-Type": "application/json"},
                     json=self._payload(system, user, schema, effort, max_tokens),
-                    timeout=timeout,
+                    timeout=min(timeout, deadline - time.monotonic()),
                 )
-            except httpx.TimeoutException as exc:
+            except httpx.TimeoutException:
                 self._log_failure(api, started, "timeout", model)
-                raise ModelUnavailable(504, "llm_timeout", "Mô hình không trả lời kịp thời gian chờ.") from exc
+
+                self._resting[model] = self._clock() + REST_TIMEOUT
+                queue.pop(0)
+
+                if queue:
+                    log.warning(
+                        "Model Gemini timeout, chuyển sang model tiếp theo",
+                        extra={
+                            "api": api,
+                            "model": queue[0],
+                            "result": "timeout",
+                        },
+                    )
+                    reconfigured = 0
+                    continue
+
+                raise ModelUnavailable(
+                    504,
+                    "llm_timeout",
+                    "Tất cả model Gemini đều không phản hồi kịp thời gian chờ.",
+                )
             except httpx.TransportError as exc:
                 self._log_failure(api, started, "connection", model)
-                raise ModelUnavailable(503, "llm_unreachable", "Không kết nối được nhà cung cấp mô hình.") from exc
-
+                raise ModelUnavailable(
+                    503,
+                    "llm_unreachable",
+                    "Không kết nối được nhà cung cấp mô hình.",
+                ) from exc
             status = last_status = response.status_code
             if status == 200:
                 body = response.json()
