@@ -1,0 +1,35 @@
+# Gói giọng đọc tiếng Việt tự host (POST /v1/tts): VieNeu-TTS v3 Turbo chạy ONNX trên CPU. Không có trong CI và trên máy demo IIS.
+# CÀI SAU requirements.txt và BẮT BUỘC có --no-deps:
+#   pip install -r requirements.txt
+#   pip install --no-deps -r requirements-giong.txt
+# Vì sao --no-deps: vieneu khai báo gradio và librosa (kéo theo pandas, pillow, numba, scipy... hàng trăm MB) nhưng đường đọc bằng giọng
+# có sẵn (preset "Mai Anh") không nhập các gói đó; tệp này liệt kê đủ phần còn lại (đã kiểm: nạp mô hình và sinh âm thanh chạy được).
+# numpy, pydantic, httpx... lấy từ requirements.txt. Phiên bản lấy từ tools/thuyet-minh/requirements-vieneu.txt (đã chạy thật).
+anyio==4.15.1
+cffi==2.1.1
+click==8.5.0
+colorama==0.4.6
+filelock==4.2.4
+flatbuffers==25.12.19
+fsspec==2026.9.0
+h11==0.16.0
+hf-xet==1.7.0
+httpcore2==2.15.1
+httpx2==2.15.1
+huggingface-hub==2.2.0
+idna==3.20
+kaldi-native-fbank==1.22.4
+lameenc==1.9.0
+onnxruntime==1.31.0
+packaging==26.3
+protobuf==7.36.2
+pycparser==3.11
+pyyaml==6.0.3
+sea-g2p==0.10.0
+soundfile==0.14.0
+soxr==1.1.0
+tokenizers==0.23.3
+tqdm==4.70.1
+truststore==0.10.5
+typing-extensions==4.16.0
+vieneu==3.8.3

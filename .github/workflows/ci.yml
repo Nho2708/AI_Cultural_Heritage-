@@ -63,11 +63,14 @@ jobs:
       - name: Chạy thử container
         run: |
           set -euo pipefail
-          docker run -d --name ai -p 127.0.0.1:8090:8000 -e AI_INTERNAL_KEY=kiem-anh -e AI_PROVIDER=gemini dsvhvn-ci/ai:ci
+          # GIONG_DOC_BAT=0: không tải mô hình giọng đọc (~530 MB) trong CI; gói giọng đọc được kiểm bằng lệnh nhập bên dưới.
+          docker run -d --name ai -p 127.0.0.1:8090:8000 -e AI_INTERNAL_KEY=kiem-anh -e AI_PROVIDER=gemini -e GIONG_DOC_BAT=0 dsvhvn-ci/ai:ci
           for _ in $(seq 1 30); do curl -fsS http://127.0.0.1:8090/health && break; sleep 1; done
           echo
           curl -fsS -o /dev/null http://127.0.0.1:8090/health
           test "$(docker inspect -f '{{.Config.User}}' ai)" = dichvuai
+          docker exec ai python -c "import vieneu, lameenc, onnxruntime, sea_g2p; print('gói giọng đọc nhập được')"
+          test "$(curl -fsS http://127.0.0.1:8090/health | python3 -c 'import json,sys; print(json.load(sys.stdin)["tts"])')" = off
           ma=$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8090/v1/rank-related -H 'Content-Type: application/json' -d '{}')
           echo "Gọi API không có khóa nội bộ: $ma"
           test "$ma" = 401

@@ -36,8 +36,8 @@ from pathlib import Path
 
 THU_MUC = Path(__file__).resolve().parent
 sys.path.insert(0, str(THU_MUC))
-from chia_cau import chia_mau, tach_cau
-from chuan_hoa_vi import chuan_hoa_doan
+sys.path.insert(0, str(THU_MUC.parents[1]))      # thư mục gốc repo: mã dùng chung nằm ở app/giong_doc
+from app.giong_doc.chuan_bi import chuan_bi_cau
 
 API_MAC_DINH = "https://34.124.169.74/api/v1"
 NGON_NGU_MAC_DINH = "vi,en,ko,zh,ja"
@@ -55,15 +55,6 @@ COT_NHAT_KY = ["thoi_diem", "buoc", "ket_qua", "heritageId", "slug", "language",
 
 def bam(van_ban: str) -> str:
     return hashlib.sha256(van_ban.encode("utf-8")).hexdigest()
-
-
-def chuan_bi_cau(van_ban: str, ngon_ngu: str) -> list[dict]:
-    """Câu hiển thị là câu gốc; mẩu đưa vào máy đọc được chuẩn hóa (tiếng Việt) và cắt <= 250 ký tự."""
-    cau = []
-    for c in tach_cau(van_ban):
-        doc = chuan_hoa_doan(c) if ngon_ngu == "vi" else c
-        cau.append({"text": c, "chunks": chia_mau(doc) or [c]})
-    return cau
 
 
 def chuan_hoa_muc(muc: dict) -> dict:

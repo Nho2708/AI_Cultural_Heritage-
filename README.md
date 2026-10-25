@@ -2,7 +2,7 @@
 
 Dịch vụ nội bộ (Python, FastAPI) mà backend gọi một chiều qua HTTP. Không truy cập cơ sở dữ liệu, không nhận dữ liệu cá nhân.
 Gọi mô hình ngôn ngữ để soạn bài học, sinh câu hỏi, tóm tắt và dịch di sản; riêng gợi ý di sản liên quan chỉ dùng scikit-learn
-(TF-IDF và cosine), không gọi mô hình ngôn ngữ. Hai nhà cung cấp, chọn bằng `AI_PROVIDER`:
+(TF-IDF và cosine), không gọi mô hình ngôn ngữ; giọng đọc tiếng Việt (`/v1/tts`) do chính dịch vụ này tự host bằng VieNeu-TTS, không gọi dịch vụ ngoài. Hai nhà cung cấp mô hình ngôn ngữ, chọn bằng `AI_PROVIDER`:
 
 | `AI_PROVIDER` | Mô hình mặc định | Chi phí | Ghi chú |
 |---|---|---|---|
@@ -16,7 +16,8 @@ Gọi mô hình ngôn ngữ để soạn bài học, sinh câu hỏi, tóm tắt
 | `POST /v1/summarize-heritage` | Tóm tắt tiếng Việt (bản ngắn để nghe, bản chi tiết để đọc) | có | low |
 | `POST /v1/translate-heritage` | Dịch sang `en`, `ko`, `zh-Hans`, `ja`, có bảng thuật ngữ tên riêng | có | low |
 | `POST /v1/rank-related` | Xếp hạng di sản liên quan | không | - |
-| `GET /health` | Kiểm tra sức khỏe (không cần khóa) | - | - |
+| `POST /v1/tts` | Đọc chữ tiếng Việt thành MP3 bằng giọng "Mai Anh" tự host (xem mục Giọng đọc tiếng Việt) | không (VieNeu-TTS) | - |
+| `GET /health` | Kiểm tra sức khỏe, gồm trạng thái giọng đọc `tts` (không cần khóa) | - | - |
 
 Hợp đồng chi tiết nằm ở phía backend (`docs/bai-hoc-theo-cap.md`, `docs/ngan-hang-cau-hoi.md`, `docs/da-ngon-ngu.md`, `docs/thong-ke-goi-y.md`).
 
@@ -27,7 +28,8 @@ app/
   main.py, asgi.py      tạo ứng dụng, kiểm khóa nội bộ, mã tương quan, log JSON
   serve.py              điểm chạy dưới IIS trên máy demo (cổng lấy từ ASPNETCORE_PORT) và trong container (AI_HOST, AI_PORT)
   config.py             cấu hình (pydantic-settings), đọc .env
-  api/routes.py         năm API và /health
+  api/routes.py         sáu API và /health
+  giong_doc/            giọng đọc tiếng Việt: chuẩn hóa chữ, chia mẩu, ghép âm thanh và MP3, nạp VieNeu-TTS, động cơ mỗi lúc một yêu cầu
   schemas/              kiểu yêu cầu, kết quả (JSON camelCase, khớp backend)
   prompts/              prompt tiếng Việt, lược đồ JSON, bảng thuật ngữ tên riêng
   validators/           bộ kiểm đầu ra theo cấp, dạng câu, ngôn ngữ
@@ -38,6 +40,7 @@ app/
 scripts/                thử gọi thật, đếm token, chạy nối backend, mô hình giả
 scripts/trien-khai/     cài site IIS, tạo cấu hình, triển khai lên máy demo (CD gọi)
 tests/                  pytest với mô hình giả, không mạng
+tools/thuyet-minh/      công cụ tạo thuyết minh tạo sẵn trên máy dev (nhập lại mã dùng chung từ app/giong_doc; app/ không nhập gì từ tools/)
 ```
 
 ## Cài đặt
@@ -49,6 +52,8 @@ py -3.14 -m venv .venv
 .\.venv\Scripts\python -m pip install -r requirements.txt          # chạy dịch vụ
 .\.venv\Scripts\python -m pip install -r requirements-dev.txt      # thêm pytest để chạy test
 ```
+
+Giọng đọc tiếng Việt cần thêm gói riêng, chỉ cài khi chạy `/v1/tts` (CI và máy demo IIS không cài): xem mục Giọng đọc tiếng Việt.
 
 Phiên bản đã ghim: `anthropic 1.13.0`, `fastapi 0.143.0`, `httpx 0.28.1` (bộ gọi Gemini), `uvicorn 0.54.0`, `pydantic 2.14.0`, `pydantic-settings 2.15.0`, `scikit-learn 1.9.1`, `numpy 2.5.3`.
 
@@ -78,6 +83,55 @@ Khóa không bao giờ vào log; log chỉ ghi mã tương quan, API, mô hình,
 
 Dùng `--host localhost` (không phải `127.0.0.1`): Windows phân giải `localhost` ra `::1` trước, nếu dịch vụ chỉ nghe IPv4 thì lần kết nối đầu của backend mất 1 đến 2 giây
 và gợi ý (chỉ chờ 2 giây) rơi vào phương án dự phòng. Kiểm tra: `curl http://localhost:8000/health`.
+
+## Giọng đọc tiếng Việt (`POST /v1/tts`)
+
+Nút Nghe của cấp 1 cần giọng đọc tiếng Việt thật, nên dịch vụ tự tạo giọng bằng [VieNeu-TTS](https://github.com/pnnbao97/VieNeu-TTS) v3 Turbo (Apache-2.0,
+ONNX Runtime trên CPU, không cần GPU), giọng preset "Mai Anh" (cùng giọng với thuyết minh tạo sẵn của tóm tắt).
+
+**Hợp đồng.** Khóa nội bộ như các API khác (`X-Internal-Key`). Thân JSON:
+
+```json
+{ "text": "Hoàng thành Thăng Long được UNESCO ghi danh ngày 31/7/2010.", "voice": "vieneu-mai-anh" }
+```
+
+`text` dài 1 đến 1000 ký tự (không được chỉ có khoảng trắng); `voice` chỉ nhận `vieneu-mai-anh` (mặc định khi bỏ qua).
+
+| Kết quả | Khi nào |
+|---|---|
+| 200, `Content-Type: audio/mpeg`, thân là MP3 mono 80 kbps, âm lượng chuẩn hóa về khoảng -20 dBFS; tiêu đề `X-Duration-Ms` (thời lượng, mili giây) và `X-Voice` | thành công |
+| 401 | thiếu hoặc sai khóa nội bộ |
+| 422 (`invalid_request`) | chữ rỗng hoặc quá 1000 ký tự, giọng không hỗ trợ; 422 (`no_speakable_text`) khi chữ chỉ có dấu câu |
+| 503 kèm `Retry-After` (giây) | `tts_disabled` (tắt bằng cấu hình), `tts_loading` (đang nạp mô hình), `tts_failed` (nạp hỏng), `tts_busy` (đang sinh yêu cầu khác quá 30 giây) |
+
+`GET /health` luôn trả 200 và thêm `"tts": "off" | "loading" | "ready" | "error"`. Nạp hỏng (ví dụ chưa tải được mô hình vì mất mạng) thì dịch vụ vẫn chạy
+bình thường, `/v1/tts` trả 503, và yêu cầu kế tiếp sau 60 giây tự thử nạp lại.
+
+**Cách làm.** Chữ được chuẩn hóa như một thuyết minh viên sẽ đọc (số, ngày, đơn vị, thế kỷ La Mã, viết tắt...: `app/giong_doc/chuan_hoa_vi.py`), tách câu và chia mẩu
+không quá 250 ký tự (`chia_cau.py`), mỗi mẩu qua mô hình, ghép lại với khoảng lặng ngắn giữa các câu rồi chuẩn hóa âm lượng và mã hóa MP3 (`am_thanh.py`).
+Một lúc chỉ sinh một yêu cầu (khóa), việc sinh chạy trong luồng riêng nên không chặn các API khác. Mô hình nạp ở luồng nền khi khởi động, dịch vụ nhận yêu cầu ngay.
+
+**Cấu hình** (biến môi trường hoặc `.env`):
+
+| Biến | Mặc định | Ý nghĩa |
+|---|---|---|
+| `GIONG_DOC_BAT` | `0` | `1` để bật. Ảnh Docker đặt sẵn `1`; máy demo IIS và CI không cài gói giọng đọc nên để tắt |
+| `GIONG_DOC_LUONG` | `2` | số luồng tính của ONNX Runtime và OMP (máy chủ e2-standard-2 có 2 vCPU) |
+| `GIONG_DOC_DO_CHINH_XAC` | `auto` | `auto`: int8 khi CPU có VNNI (Linux đọc cờ `avx512_vnni` hoặc `avx_vnni` trong `/proc/cpuinfo`), không thì fp32; hoặc ép `int8` / `fp32`. int8 nhanh hơn nhưng trên CPU không có VNNI thì tiếng bị méo. Hệ điều hành khác Linux không đọc được cờ nên `auto` chọn fp32 |
+
+**Cài gói giọng đọc** (sau `requirements.txt`; `--no-deps` là bắt buộc, lý do ghi ở đầu `requirements-giong.txt`):
+
+```powershell
+.\.venv\Scripts\python -m pip install -r requirements.txt
+.\.venv\Scripts\python -m pip install --no-deps -r requirements-giong.txt
+$env:GIONG_DOC_BAT = "1"; $env:HF_HOME = "D:\mo-hinh"        # mô hình ~530 MB tải về HF_HOME ở lần chạy đầu (cần Internet)
+.\run.ps1
+```
+
+Nạp mô hình mất khoảng 10 đến 20 giây, RAM đỉnh khoảng 1 GB. Hugging Face cache dùng symlink mà ONNX Runtime 1.31 từ chối, nên khi gặp lỗi đó
+dịch vụ tự thay symlink bằng tệp thật (`go_symlink_hf.py`); cần đặt `HF_HOME`. Trong ảnh Docker, `HF_HOME=/srv/mo-hinh` là volume để lần triển khai sau không tải lại mô hình.
+Thời gian sinh tính theo thời lượng âm thanh: đo trên máy dev 2 luồng, một câu ngắn khoảng 1 giây, đoạn 9 giây âm thanh khoảng 5 đến 8 giây; máy chủ 2 vCPU dự kiến chậm hơn
+2 đến 3 lần, nên phía gọi nên cho thời gian chờ hàng chục giây và lưu lại tệp đã tạo.
 
 ## Cấu hình backend
 
@@ -188,8 +242,8 @@ Hạn mức miễn phí của Gemini tính theo dự án Google, nên máy dev v
 
 ## Triển khai lên máy chủ Google Cloud
 
-Máy chủ Google Cloud chạy dịch vụ trong container (ảnh dựng từ `Dockerfile`: Python 3.14, chỉ `requirements.txt` và `app/`, người dùng
-không phải root, nghe `0.0.0.0:8000` trong container, máy chủ chỉ mở ra `127.0.0.1:8090`). Khóa không nằm trong ảnh: Docker Compose
+Máy chủ Google Cloud chạy dịch vụ trong container (ảnh dựng từ `Dockerfile`: Python 3.14, `requirements.txt` cộng `requirements-giong.txt` và `app/`, bật sẵn giọng đọc
+(`GIONG_DOC_BAT=1`, mô hình trong volume `/srv/mo-hinh`), người dùng không phải root, nghe `0.0.0.0:8000` trong container, máy chủ chỉ mở ra `127.0.0.1:8090`). Khóa không nằm trong ảnh: Docker Compose
 nạp `/opt/dsvhvn/cau-hinh/ai.env` do `deploy/google-cloud/tao-cau-hinh-may-chu.ps1` của repo backend sinh (chỉ khóa của nhà cung
 cấp đang dùng, khóa nội bộ riêng của máy chủ). Biến repo `GCP_DEPLOY=true` thì CD dựng ảnh, đẩy lên Artifact Registry rồi chạy
 `/opt/dsvhvn/bin/trien-khai.sh ai <mã commit>` trên máy chủ (kiểm `/health`, hỏng thì trả bản trước). Cách cài máy chủ và vận hành:
@@ -201,7 +255,7 @@ cấp đang dùng, khóa nội bộ riêng của máy chủ). Biến repo `GCP_D
 .\.venv\Scripts\python -m pytest
 ```
 
-Test dùng mô hình giả và SDK giả, không mạng, không cần khóa thật: khóa nội bộ, lược đồ vào, đầu ra hợp lệ và sai của từng API, gọi lại, `max_tokens`, từ chối, lỗi 429, 5xx, mạng, quá giờ của nhà cung cấp, bảng thuật ngữ, gợi ý, cấu hình, log không lộ khóa.
+Test dùng mô hình giả và SDK giả (kể cả máy đọc giả phát sóng hình sin cho `/v1/tts`, không nhập `vieneu`), không mạng, không cần khóa thật; `lameenc` (trong `requirements-dev.txt`) mã hóa MP3 thật trong test: khóa nội bộ, lược đồ vào, đầu ra hợp lệ và sai của từng API, gọi lại, `max_tokens`, từ chối, lỗi 429, 5xx, mạng, quá giờ của nhà cung cấp, bảng thuật ngữ, gợi ý, cấu hình, log không lộ khóa.
 
 ## Thử với mô hình thật và nối backend
 

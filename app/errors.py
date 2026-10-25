@@ -8,8 +8,9 @@ from __future__ import annotations
 
 
 class ServiceError(Exception):
-    def __init__(self, status: int, code: str, message: str, *, details: list[dict] | None = None):
+    def __init__(self, status: int, code: str, message: str, *, details: list[dict] | None = None, headers: dict[str, str] | None = None):
         super().__init__(message)
+        self.headers = headers or {}
         self.status = status
         self.code = code
         self.message = message

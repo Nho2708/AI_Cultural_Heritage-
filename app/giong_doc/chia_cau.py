@@ -6,7 +6,7 @@
 - Mẩu đọc: một câu quá dài được cắt thành nhiều mẩu <= toi_da ký tự ở dấu phẩy, chấm phẩy rồi khoảng trắng
   (không bao giờ cắt giữa từ). Mốc thời gian vẫn tính theo câu hiển thị, không theo mẩu.
 
-Chỉ dùng thư viện chuẩn.
+Chỉ dùng thư viện chuẩn. Dùng chung cho dịch vụ AI (POST /v1/tts) và công cụ tạo thuyết minh tạo sẵn.
 """
 from __future__ import annotations
 

@@ -1,12 +1,7 @@
-"""Tách câu hiển thị và chia mẩu đọc của công cụ tạo thuyết minh (tools/thuyet-minh/chia_cau.py). Không cần gói nào ngoài thư viện chuẩn."""
+"""Tách câu hiển thị và chia mẩu đọc của giọng đọc (app/giong_doc/chia_cau.py). Không cần gói nào ngoài thư viện chuẩn."""
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools" / "thuyet-minh"))
-
-from chia_cau import SO_CAU_TOI_DA, chia_mau, tach_cau
+from app.giong_doc.chia_cau import SO_CAU_TOI_DA, chia_mau, tach_cau
 
 
 def test_tach_o_cham_than_hoi_ba_cham():

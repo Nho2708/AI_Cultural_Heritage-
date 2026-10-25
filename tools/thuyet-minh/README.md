@@ -2,7 +2,8 @@
 
 Tạo tệp MP3 đọc bản tóm tắt ngắn của di sản (năm ngôn ngữ) bằng giọng tự host trên máy dev rồi tải lên máy chủ qua API quản trị.
 Tab "Nghe" của web học tập và app phát tệp này kèm tô sáng câu theo mốc thời gian; chưa có tệp thì vẫn dùng giọng thiết bị.
-Máy chủ không tạo giọng; thư mục này **không vào ảnh Docker** (`.dockerignore`) và `app/` không nhập gì từ đây.
+Thư mục này **không vào ảnh Docker** (`.dockerignore`) và `app/` không nhập gì từ đây. Chiều ngược lại thì có: phần dùng chung với giọng đọc tự host của dịch vụ AI
+(`POST /v1/tts`, xem README.md ở thư mục gốc) nằm trong `app/giong_doc/` và công cụ nhập lại từ đó, nên các script ở đây tự thêm thư mục gốc repo vào `sys.path`.
 
 | Ngôn ngữ | Máy đọc | Giọng (`voice`) | Giấy phép |
 |---|---|---|---|
@@ -18,9 +19,16 @@ Mô hình tải từ Hugging Face về `.cache/hf` lần đầu (vài GB). Âm t
 | Tệp | Vai trò |
 |---|---|
 | `tao_thuyet_minh.py` | Tiến trình chính, chỉ thư viện chuẩn (Python ≥ 3.11 bất kỳ): đăng nhập, lấy danh sách thiếu, gọi máy đọc, tải lên, nhật ký CSV |
-| `chuan_hoa_vi.py`, `chia_cau.py` | Chuẩn hóa tiếng Việt; tách câu hiển thị và chia mẩu ≤ 250 ký tự cho máy đọc (có test trong `tests/`) |
-| `doc_vieneu.py`, `doc_melo.py`, `chay_viec.py`, `am_thanh.py` | Máy đọc chạy trong venv riêng: nạp mô hình một lần, ghép sóng theo câu kèm mốc, ghi MP3 |
-| `cai-dat.ps1`, `requirements-*.txt`, `go_symlink_hf.py` | Dựng hai venv bằng uv với phiên bản ghim, tải dữ liệu NLTK/unidic, kéo mô hình, sửa symlink của Hugging Face cache |
+| `doc_vieneu.py`, `doc_melo.py`, `chay_viec.py` | Máy đọc chạy trong venv riêng: nạp mô hình một lần, ghép sóng theo câu kèm mốc, ghi MP3 |
+| `cai-dat.ps1`, `requirements-*.txt`, `go_symlink_hf.py` | Dựng hai venv bằng uv với phiên bản ghim, tải dữ liệu NLTK/unidic, kéo mô hình, sửa symlink của Hugging Face cache (`go_symlink_hf.py` chỉ còn là lớp mỏng gọi mã trong `app/giong_doc/`) |
+
+Mã dùng chung đã chuyển sang `app/giong_doc/` (test ở `tests/test_giong_doc_*.py`), công cụ nhập lại từ đó:
+
+| Tệp trong `app/giong_doc/` | Vai trò |
+|---|---|
+| `chuan_hoa_vi.py`, `chia_cau.py`, `chuan_bi.py` | Chuẩn hóa tiếng Việt; tách câu hiển thị và chia mẩu ≤ 250 ký tự cho máy đọc; ghép hai bước thành danh sách câu kèm mẩu (chỉ thư viện chuẩn, nên `tao_thuyet_minh.py` vẫn chạy bằng Python bất kỳ ≥ 3.11) |
+| `am_thanh.py` | Ghép sóng theo câu kèm mốc, chuẩn hóa âm lượng, mã hóa MP3 (cần numpy, lameenc) |
+| `mo_hinh.py`, `go_symlink_hf.py` | Nạp VieNeu v3 Turbo kể cả cách sửa symlink; công cụ này luôn nạp fp32, còn dịch vụ tự chọn int8 khi CPU có VNNI |
 | `mau/vi-du.json`, `mau/kiem-cai-dat.json` | Mục mẫu để chạy cục bộ không mạng |
 
 ## Cài đặt (một lần)
