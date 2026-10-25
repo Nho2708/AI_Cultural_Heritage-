@@ -7,7 +7,9 @@ vào máy đọc; câu hiển thị cho người dùng vẫn là câu gốc.
 Các quy tắc đều dựa trên bảng tra (dict) để sau này bổ sung từ điển phát âm tên di sản mà không phải sửa logic.
 Chỉ dùng thư viện chuẩn, chạy được với mọi Python >= 3.11.
 
-Dùng thử:  python -X utf8 chuan_hoa_vi.py "Khu đền tháp Mỹ Sơn được xếp hạng ngày 10/5/2012."
+Dùng chung cho dịch vụ AI (POST /v1/tts) và công cụ tạo thuyết minh tạo sẵn.
+
+Dùng thử (từ thư mục gốc repo):  python -X utf8 -m app.giong_doc.chuan_hoa_vi "Khu đền tháp Mỹ Sơn được xếp hạng ngày 10/5/2012."
 """
 from __future__ import annotations
 

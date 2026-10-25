@@ -16,8 +16,8 @@ import time
 import traceback
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from am_thanh import ghep_theo_cau, luu_mp3
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))      # thư mục gốc repo: mã dùng chung nằm ở app/giong_doc
+from app.giong_doc.am_thanh import ghep_theo_cau, luu_mp3
 
 
 def chay(duong_dan_viec: str, lay_may_doc) -> int:

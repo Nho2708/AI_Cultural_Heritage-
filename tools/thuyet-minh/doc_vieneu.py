@@ -5,7 +5,6 @@ Giọng: vieneu-mai-anh -> preset "Mai Anh" của VieNeu.
 """
 from __future__ import annotations
 
-import os
 import sys
 import time
 from pathlib import Path
@@ -13,22 +12,15 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))      # thư mục gốc repo: mã dùng chung nằm ở app/giong_doc
 from chay_viec import chay
-from go_symlink_hf import go_symlink
 
-GIONG = {"vieneu-mai-anh": "Mai Anh"}
+from app.giong_doc.mo_hinh import GIONG, tai_vieneu
 
 
 def tai_mo_hinh():
-    from vieneu import Vieneu
-    try:
-        return Vieneu(mode="v3turbo", backend="onnx", precision="fp32")
-    except Exception as e:
-        # ONNX Runtime từ chối tệp dữ liệu ngoài khi snapshot của Hugging Face cache là symlink: thay bằng tệp thật rồi nạp lại.
-        if "External data path" not in str(e) or not os.environ.get("HF_HOME"):
-            raise
-        go_symlink(Path(os.environ["HF_HOME"]))
-        return Vieneu(mode="v3turbo", backend="onnx", precision="fp32")
+    # Công cụ chạy offline trên máy dev nên giữ fp32 (chất lượng tối đa), số luồng do VieNeu tự chọn.
+    return tai_vieneu("fp32", 0)
 
 
 def main() -> int:

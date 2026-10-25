@@ -1,17 +1,15 @@
-"""Bộ chuẩn hóa văn bản tiếng Việt của công cụ tạo thuyết minh (tools/thuyet-minh/chuan_hoa_vi.py): số, ngày, thế kỷ La Mã,
+"""Bộ chuẩn hóa văn bản tiếng Việt của giọng đọc (app/giong_doc/chuan_hoa_vi.py): số, ngày, thế kỷ La Mã,
 đơn vị, viết tắt, chữ cái đơn, dấu câu. Không cần gói nào ngoài thư viện chuẩn."""
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
 import pytest
 
-THU_MUC_CONG_CU = Path(__file__).resolve().parent.parent / "tools" / "thuyet-minh"
-sys.path.insert(0, str(THU_MUC_CONG_CU))
+from app.giong_doc.chuan_hoa_vi import chuan_hoa, chuan_hoa_doan, chuoi_so_thanh_chu, la_ma_thanh_so, so_thanh_chu
 
-from chuan_hoa_vi import chuan_hoa, chuan_hoa_doan, chuoi_so_thanh_chu, la_ma_thanh_so, so_thanh_chu
+THU_MUC_CONG_CU = Path(__file__).resolve().parent.parent / "tools" / "thuyet-minh"
 
 
 # ---------------------------------------------------------------- đọc số

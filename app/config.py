@@ -54,6 +54,14 @@ class Settings(BaseSettings):
     ai_heritage_budget_seconds: float = Field(default=88.0, gt=0)
     ai_log_level: str = "INFO"
 
+    # Giọng đọc tiếng Việt tự host (POST /v1/tts, VieNeu-TTS v3 Turbo). Mặc định tắt: máy chỉ cài requirements.txt (CI, máy demo
+    # IIS) không có gói giọng đọc. Ảnh Docker đặt GIONG_DOC_BAT=1.
+    giong_doc_bat: bool = False
+    # Số luồng tính của ONNX Runtime / OMP; máy chủ 2 vCPU thì để 2.
+    giong_doc_luong: int = Field(default=2, ge=1, le=32)
+    # "auto": int8 khi CPU có VNNI (Linux đọc /proc/cpuinfo), không thì fp32; "int8" hoặc "fp32" để ép.
+    giong_doc_do_chinh_xac: Literal["auto", "int8", "fp32"] = "auto"
+
     def provider_key(self) -> str | None:
         """Khóa của nhà cung cấp đang chọn (None nếu chưa đặt)."""
         secret = self.gemini_api_key if self.ai_provider == "gemini" else self.anthropic_api_key

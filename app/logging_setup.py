@@ -12,6 +12,7 @@ correlation_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("correl
 _EXTRA_FIELDS = (
     "api", "model", "inputTokens", "outputTokens", "cacheReadTokens", "cacheWriteTokens",
     "ms", "result", "status", "method", "path", "attempt", "problems", "stopReason", "errorCode",
+    "precision", "chars", "durationMs", "reason",
 )
 
 

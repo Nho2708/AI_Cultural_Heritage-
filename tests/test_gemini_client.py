@@ -246,4 +246,4 @@ async def test_full_pipeline_with_fake_gemini_returns_valid_lesson(make_client):
 
 async def test_health_reports_provider_and_model(make_client):
     r = await make_client(FakeGemini(reply({})).llm(), ai_provider="gemini", gemini_api_key=KEY).get("/health")
-    assert r.json() == {"status": "ok", "provider": "gemini", "model": "gemini-3.8-flash", "llmConfigured": True}
+    assert r.json() == {"status": "ok", "provider": "gemini", "model": "gemini-3.8-flash", "llmConfigured": True, "tts": "off"}

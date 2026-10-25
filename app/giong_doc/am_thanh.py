@@ -1,4 +1,5 @@
-"""Ghép sóng âm theo câu kèm mốc thời gian, chuẩn hóa âm lượng, ghi MP3 mono. Chỉ chạy trong venv của máy đọc (cần numpy, lameenc)."""
+"""Ghép sóng âm theo câu kèm mốc thời gian, chuẩn hóa âm lượng, mã hóa MP3 mono. Cần numpy; lameenc chỉ nạp khi mã hóa MP3
+(gói giọng đọc: requirements-giong.txt). Dùng chung cho dịch vụ AI (POST /v1/tts) và công cụ tạo thuyết minh tạo sẵn."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -88,11 +89,9 @@ def _lay_mau_lai(x: np.ndarray, sr: int, sr_moi: int) -> np.ndarray:
     return np.interp(np.arange(n_moi) / sr_moi, np.arange(x.size) / sr, x).astype(np.float32)
 
 
-def luu_mp3(x: np.ndarray, sr: int, duong_dan: str | Path, kbps: int = KBPS) -> None:
-    """Ghi MP3 mono CBR bằng lameenc; ghi tệp tạm rồi đổi tên để không bao giờ để lại tệp dở."""
+def ma_hoa_mp3(x: np.ndarray, sr: int, kbps: int = KBPS) -> bytes:
+    """Sóng float -> byte MP3 mono CBR bằng lameenc (tần số mẫu lạ được lấy mẫu lại lên mức gần nhất lameenc nhận)."""
     import lameenc
-    duong_dan = Path(duong_dan)
-    duong_dan.parent.mkdir(parents=True, exist_ok=True)
     x = mono_float(x)
     if sr not in _LAME_SR:
         sr_moi = min((s for s in _LAME_SR if s >= sr), default=48000)
@@ -103,6 +102,13 @@ def luu_mp3(x: np.ndarray, sr: int, duong_dan: str | Path, kbps: int = KBPS) -> 
     enc.set_channels(1)
     enc.set_quality(2)
     pcm = (np.clip(x, -1, 1) * 32767).astype("<i2").tobytes()
+    return bytes(enc.encode(pcm) + enc.flush())
+
+
+def luu_mp3(x: np.ndarray, sr: int, duong_dan: str | Path, kbps: int = KBPS) -> None:
+    """Ghi MP3 mono CBR; ghi tệp tạm rồi đổi tên để không bao giờ để lại tệp dở."""
+    duong_dan = Path(duong_dan)
+    duong_dan.parent.mkdir(parents=True, exist_ok=True)
     tam = duong_dan.with_name(duong_dan.name + ".tmp")
-    tam.write_bytes(enc.encode(pcm) + enc.flush())
+    tam.write_bytes(ma_hoa_mp3(x, sr, kbps))
     tam.replace(duong_dan)

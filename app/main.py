@@ -6,6 +6,8 @@ import logging
 import re
 import time
 import uuid
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -14,6 +16,7 @@ from fastapi.responses import JSONResponse
 from .api.routes import router
 from .config import Settings, get_settings
 from .errors import ServiceError
+from .giong_doc.dong_co import GiongDoc
 from .llm.client import Llm
 from .llm.factory import build_llm
 from .logging_setup import correlation_id_var, setup_logging
@@ -24,11 +27,11 @@ KEY_HEADER = "x-internal-key"
 CORRELATION_HEADER = "X-Correlation-Id"
 
 
-def _error(status: int, code: str, message: str, details: list[dict] | None = None) -> JSONResponse:
+def _error(status: int, code: str, message: str, details: list[dict] | None = None, headers: dict[str, str] | None = None) -> JSONResponse:
     body: dict = {"errorCode": code, "message": message, "correlationId": correlation_id_var.get()}
     if details:
         body["details"] = details
-    return JSONResponse(status_code=status, content=body)
+    return JSONResponse(status_code=status, content=body, headers=headers)
 
 
 def _key_ok(provided: str | None, expected: str) -> bool:
@@ -37,7 +40,8 @@ def _key_ok(provided: str | None, expected: str) -> bool:
     return hmac.compare_digest(provided.encode("utf-8"), expected.encode("utf-8"))
 
 
-def create_app(settings: Settings | None = None, llm: Llm | None = None, *, configure_logging: bool = True) -> FastAPI:
+def create_app(settings: Settings | None = None, llm: Llm | None = None, *, configure_logging: bool = True,
+               giong_doc: GiongDoc | None = None) -> FastAPI:
     settings = settings or get_settings()
     if configure_logging:
         setup_logging(settings.ai_log_level)
@@ -51,9 +55,19 @@ def create_app(settings: Settings | None = None, llm: Llm | None = None, *, conf
             missing = "GEMINI_API_KEY" if settings.ai_provider == "gemini" else "ANTHROPIC_API_KEY"
             log.warning(f"Chưa có {missing}: các API dùng mô hình sẽ trả 503, rank-related vẫn chạy.")
 
-    app = FastAPI(title="DSVHVN AI Service", version="1.0.0", docs_url=None, redoc_url=None, openapi_url=None)
+    if giong_doc is None:
+        giong_doc = GiongDoc(settings.giong_doc_bat, settings.giong_doc_luong, settings.giong_doc_do_chinh_xac)
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        # Nạp mô hình giọng đọc ở luồng nền: dịch vụ nhận yêu cầu (và /health trả 200) ngay, không đợi nạp xong.
+        giong_doc.khoi_dong()
+        yield
+
+    app = FastAPI(title="DSVHVN AI Service", version="1.0.0", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
     app.state.settings = settings
     app.state.llm = llm
+    app.state.giong_doc = giong_doc
     expected_key = settings.internal_key_value()
 
     @app.middleware("http")
@@ -84,7 +98,7 @@ def create_app(settings: Settings | None = None, llm: Llm | None = None, *, conf
     @app.exception_handler(ServiceError)
     async def service_error_handler(_: Request, exc: ServiceError) -> JSONResponse:
         log.warning("Trả lỗi", extra={"status": exc.status, "errorCode": exc.code})
-        return _error(exc.status, exc.code, exc.message, exc.details)
+        return _error(exc.status, exc.code, exc.message, exc.details, exc.headers)
 
     @app.exception_handler(RequestValidationError)
     async def validation_handler(_: Request, exc: RequestValidationError) -> JSONResponse:
