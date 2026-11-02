@@ -32,8 +32,8 @@ def env_files() -> tuple[str, ...]:
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=None, extra="ignore", case_sensitive=False)
 
-    # Nhà cung cấp mô hình: "anthropic" (Claude, trả phí theo lượt) hoặc "gemini" (Google AI Studio, có hạn mức miễn phí).
-    ai_provider: Literal["anthropic", "gemini"] = "anthropic"
+    # Nhà cung cấp mô hình: "gemini" (mặc định, Google AI Studio, máy chủ đang dùng) hoặc "anthropic" (Claude, trả phí theo lượt).
+    ai_provider: Literal["anthropic", "gemini"] = "gemini"
     anthropic_api_key: SecretStr | None = None
     ai_internal_key: SecretStr | None = None
     ai_model: str = "claude-haiku-5-5"

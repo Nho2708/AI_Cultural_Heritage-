@@ -6,8 +6,8 @@ Gọi mô hình ngôn ngữ để soạn bài học, sinh câu hỏi, tóm tắt
 
 | `AI_PROVIDER` | Mô hình mặc định | Chi phí | Ghi chú |
 |---|---|---|---|
-| `anthropic` (mặc định) | `claude-haiku-5-5` (`AI_MODEL`) | trả theo lượt, nạp tiền trước | SDK `anthropic` |
-| `gemini` | `gemini-3.8-flash` (`GEMINI_MODEL`) | hạn mức miễn phí của Google AI Studio | REST `generateContent`; bản miễn phí: Google có thể dùng dữ liệu gửi lên, điều khoản yêu cầu người dùng từ 18 tuổi |
+| `anthropic` | `claude-haiku-5-5` (`AI_MODEL`) | trả theo lượt, nạp tiền trước | SDK `anthropic` |
+| `gemini` (mặc định) | `gemini-3.8-flash` (`GEMINI_MODEL`) | hạn mức miễn phí của Google AI Studio | REST `generateContent`; bản miễn phí: Google có thể dùng dữ liệu gửi lên, điều khoản yêu cầu người dùng từ 18 tuổi |
 
 | API | Việc | Mô hình | Mức suy nghĩ |
 |---|---|---|---|
@@ -59,7 +59,7 @@ Phiên bản đã ghim: `anthropic 1.13.0`, `fastapi 0.143.0`, `httpx 0.28.1` (b
 
 ## Đặt khóa
 
-Các biến: `AI_INTERNAL_KEY` (khóa nội bộ giữa backend và dịch vụ này, bắt buộc), `AI_PROVIDER` (`anthropic` hoặc `gemini`), rồi khóa của nhà cung cấp đã chọn:
+Các biến: `AI_INTERNAL_KEY` (khóa nội bộ giữa backend và dịch vụ này, bắt buộc), `AI_PROVIDER` (`gemini`, mặc định, hoặc `anthropic`), rồi khóa của nhà cung cấp đã chọn:
 `ANTHROPIC_API_KEY` và `AI_MODEL` (mặc định `claude-haiku-5-5`), hoặc `GEMINI_API_KEY` (tạo ở aistudio.google.com, mục Get API key; đừng bật thanh toán nếu muốn ở bản miễn phí),
 `GEMINI_MODEL` (mặc định `gemini-3.8-flash`) và `GEMINI_THINKING_LEVEL` (mặc định `low`: ở bản miễn phí mức `medium` làm một lần soạn bài quá 40 giây; để rỗng thì theo mức của từng API).
 Chọn một trong hai cách (có cả hai thì `.env` trong thư mục dịch vụ thắng; biến môi trường của tiến trình thắng cả hai):

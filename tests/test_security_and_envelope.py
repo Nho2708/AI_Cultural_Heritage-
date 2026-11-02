@@ -94,8 +94,10 @@ def test_service_refuses_to_start_without_internal_key():
 
 def test_settings_load_from_env_file_and_hide_secrets(tmp_path, monkeypatch):
     env = tmp_path / "x.env"
-    env.write_text("ANTHROPIC_API_KEY=sk-ant-gia-lap-123\nAI_INTERNAL_KEY=khoa-gia\nAI_MODEL=claude-haiku-5-5\nBIEN_LA=1\n", encoding="utf-8")
-    for name in ("ANTHROPIC_API_KEY", "AI_INTERNAL_KEY", "AI_MODEL"):
+    env.write_text(
+        "AI_PROVIDER=anthropic\nANTHROPIC_API_KEY=sk-ant-gia-lap-123\nAI_INTERNAL_KEY=khoa-gia\nAI_MODEL=claude-haiku-5-5\nBIEN_LA=1\n", encoding="utf-8"
+    )
+    for name in ("AI_PROVIDER", "ANTHROPIC_API_KEY", "AI_INTERNAL_KEY", "AI_MODEL"):
         monkeypatch.delenv(name, raising=False)
     s = Settings(_env_file=str(env))  # type: ignore[call-arg]
     assert s.internal_key_value() == "khoa-gia" and s.llm_configured() and s.ai_model == "claude-haiku-5-5"
