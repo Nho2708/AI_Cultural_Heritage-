@@ -230,7 +230,7 @@ def test_factory_picks_the_provider_from_settings():
     assert gemini.models == ["gemini-3.5-flash", "gemini-3.5-flash-lite"]  # mô hình chính không lặp lại trong danh sách dự phòng
     single = build_llm(Settings(ai_internal_key=INTERNAL_KEY, ai_provider="gemini", gemini_api_key=KEY, gemini_fallback_models=""))
     assert single.models == ["gemini-3.8-flash"]
-    claude = build_llm(Settings(ai_internal_key=INTERNAL_KEY, anthropic_api_key="khong-dung"))
+    claude = build_llm(Settings(ai_internal_key=INTERNAL_KEY, ai_provider="anthropic", anthropic_api_key="khong-dung"))
     assert isinstance(claude, AnthropicLlm) and claude.model == "claude-haiku-5-5"
     no_key = Settings(ai_internal_key=INTERNAL_KEY, ai_provider="gemini", anthropic_api_key="co-khoa-claude-nhung-khong-dung")
     assert no_key.llm_configured() is False and no_key.model_name() == "gemini-3.8-flash"

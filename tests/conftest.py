@@ -41,7 +41,7 @@ def make_client():
     clients: list[httpx.AsyncClient] = []
 
     def factory(llm, **settings) -> httpx.AsyncClient:
-        cfg = Settings(ai_internal_key=INTERNAL_KEY, anthropic_api_key="khong-dung", **settings)
+        cfg = Settings(**{"ai_internal_key": INTERNAL_KEY, "ai_provider": "anthropic", "anthropic_api_key": "khong-dung", **settings})
         app = create_app(cfg, llm, configure_logging=False)
         client = httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test", headers=HEADERS)
         clients.append(client)
