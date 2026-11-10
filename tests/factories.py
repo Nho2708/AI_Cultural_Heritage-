@@ -61,6 +61,14 @@ def compose_request(level: int, length: str = "MEDIUM", **kw: Any) -> dict:
     }
 
 
+def rewrite_request(level: int, kind: str, text: str, *, title: str | None = None, year: int | None = None,
+                    note: str = "", lesson_content: str = "", **kw: Any) -> dict:
+    return {
+        "generationId": 12, "lessonId": 5, "gradeLevel": level, "kind": kind, "currentText": text, "title": title, "year": year,
+        "teacherNote": note, "lessonContent": lesson_content, "heritages": [heritage_input(1, **kw)],
+    }
+
+
 def lesson_output(level: int, req: dict, *, words: int | None = None) -> dict:
     h = req["heritages"][0]
     media = [i["mediaId"] for i in h["images"]]

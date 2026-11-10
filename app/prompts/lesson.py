@@ -3,11 +3,21 @@ from __future__ import annotations
 
 from ..rules import LEVEL_FRAMES, target_sentences, target_words
 from ..schemas.lesson import ComposeRequest
-from .common import INT, SAFETY, STR, dumps, heritage_payload, nullable, obj
+from .common import (
+    INT,
+    SAFETY_WITH_TEACHER_NOTE,
+    STR,
+    TEACHER_NOTE_RULES,
+    dumps,
+    heritage_payload,
+    nullable,
+    obj,
+    teacher_note_block,
+)
 
 _COMMON = f"""Bạn là biên soạn viên bài học về di sản văn hóa Việt Nam cho trường học, viết tiếng Việt chuẩn, chính xác, trung lập.
 Nhiệm vụ: soạn BẢN NHÁP nội dung bài học từ tư liệu di sản được cung cấp, đúng khung của cấp học của lớp. Giáo viên sẽ duyệt và sửa trước khi dùng.
-{SAFETY}
+{SAFETY_WITH_TEACHER_NOTE}
 
 Quy tắc chung:
 - Viết văn bản thuần: không dùng ký hiệu Markdown (không #, **, gạch đầu dòng, liên kết). Các đoạn cách nhau bằng một dòng trống.
@@ -15,7 +25,7 @@ Quy tắc chung:
 - Khi có nhiều di sản, kết nối chúng thành một bài mạch lạc, không viết rời từng di sản.
 - Số từ tính bằng cách tách theo khoảng trắng (mỗi tiếng tiếng Việt là một từ). Hãy đếm cẩn thận để nằm đúng khoảng được yêu cầu.
 - Nội dung hiện có của bài (nếu có) chỉ để tham khảo; viết lại cho đúng cấp.
-"""
+{TEACHER_NOTE_RULES}"""
 
 _LEVEL1 = """
 CẤP 1 (học sinh lớp 1 đến 5) - bài là một CÂU CHUYỆN kể:
@@ -83,6 +93,7 @@ def user_prompt(req: ComposeRequest) -> str:
         ),
         "</yeu_cau>",
     ]
+    parts += teacher_note_block(req.teacher_note)
     if req.current_content.strip():
         parts += ["<noi_dung_hien_co>", req.current_content.strip()[:4000], "</noi_dung_hien_co>"]
     parts += ["<di_san>", dumps(heritage_payload(req.heritages, with_image_urls=False)), "</di_san>"]

@@ -49,6 +49,7 @@ class MoHinhGia:
         self.calls += 1
         data = {
             "compose-lesson": self._compose,
+            "rewrite-section": self._rewrite,
             "generate-questions": self._questions,
             "summarize-heritage": self._summarize,
             "translate-heritage": self._translate,
@@ -102,6 +103,16 @@ class MoHinhGia:
                        "mediaId": None, "year": None, "eventId": None}],
             "sourceQuotes": quotes, **base,
         }
+
+    # ---- Viết lại một phần ----
+    def _rewrite(self, user: str) -> dict:
+        block = re.search(r"<phan_can_viet_lai>\n(.*?)\n</phan_can_viet_lai>", user, re.DOTALL)
+        section = json.loads(block.group(1))
+        text = " ".join(section["currentText"].split())
+        if section["kind"] == "STORY":
+            words = text.split()
+            text = " ".join(words[:50]).rstrip(",;:") if len(words) > 50 else text
+        return {"text": text, "title": section["title"]}
 
     # ---- Sinh câu ----
     def _questions(self, user: str) -> dict:

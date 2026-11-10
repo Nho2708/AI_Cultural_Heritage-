@@ -54,6 +54,43 @@ LEVEL3_MAX_QUOTES = 3
 LEVEL3_QUOTE_MAX_WORDS = 150
 LEVEL3_QUOTE_MIN_WORDS = 8
 
+# ---- Viết lại một phần của bài (giới hạn từng loại phần, sao đúng của backend) ----
+
+REWRITE_TEXT_MAX = 4000
+REWRITE_TITLE_MAX = 255
+REWRITE_LESSON_CONTENT_MAX = 6000
+TEACHER_NOTE_MAX = 500
+REWRITE_STORY_AVG_SENTENCE_WORDS = 15
+REWRITE_READING_MIN_WORDS, REWRITE_READING_MAX_WORDS = 20, 400
+
+
+@dataclass(frozen=True)
+class SectionLimit:
+    """Giới hạn đầu ra khi viết lại một phần. max_sentences None: không giới hạn số câu."""
+
+    name: str
+    min_sentences: int
+    max_sentences: int | None
+    min_words: int
+    max_words: int
+    avg_sentence_words: int | None = None
+    is_question: bool = False
+
+
+def section_limit(kind: str, level: int) -> SectionLimit:
+    if kind == "STORY":
+        return SectionLimit("bước câu chuyện", 2, 4, 1, LEVEL1_STEP_MAX_WORDS, REWRITE_STORY_AVG_SENTENCE_WORDS)
+    if kind == "IMAGE":
+        return SectionLimit("chú thích hình", 1, 1, 1, 20 if level == 1 else 40)
+    if kind == "READING":
+        return SectionLimit("bài đọc", 1, None, REWRITE_READING_MIN_WORDS, REWRITE_READING_MAX_WORDS)
+    if kind == "MILESTONE":
+        return SectionLimit("mốc thời gian", 1, 2, 1, 60)
+    if kind == "REFLECTION":
+        return SectionLimit("câu hỏi gợi suy nghĩ", 1, 1, 1, 60, is_question=True)
+    raise KeyError(kind)
+
+
 MIN_KEY_POINTS, MAX_KEY_POINTS = 3, 7
 KEY_POINT_MAX_CHARS = 300
 MIN_YEAR = -100_000

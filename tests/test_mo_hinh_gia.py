@@ -27,6 +27,26 @@ async def test_compose(make_client, level, length):
     assert llm.calls == 1
 
 
+REWRITE_OLD_TEXT = {
+    "STORY": "Ngày xưa có một tòa thành rất đẹp. Các vua làm việc ở đây. Người dân đến đây để học về lịch sử.",
+    "IMAGE": "Cổng chính của tòa thành.",
+    "READING": "Hoàng thành Thăng Long là kinh đô của nước Đại Việt suốt nhiều thế kỷ. Nơi đây gắn với nhiều triều đại và có nhiều lớp văn hóa.",
+    "MILESTONE": "Vua dời đô về Thăng Long.",
+}
+
+
+@pytest.mark.parametrize("kind", list(REWRITE_OLD_TEXT))
+async def test_rewrite_section(make_client, kind):
+    llm = MoHinhGia()
+    body = {
+        "gradeLevel": 1 if kind == "STORY" else 2, "kind": kind, "currentText": REWRITE_OLD_TEXT[kind],
+        "title": "Mốc một" if kind == "MILESTONE" else None, "heritages": [mau.di_san()],
+    }
+    r = await make_client(llm).post("/v1/rewrite-section", json=body)
+    assert r.status_code == 200, r.text
+    assert llm.calls == 1
+
+
 @pytest.mark.parametrize("level", [1, 2, 3])
 async def test_questions(make_client, level):
     llm = MoHinhGia()
