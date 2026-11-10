@@ -1,7 +1,7 @@
 # Dịch vụ AI của DSVHVN
 
 Dịch vụ nội bộ (Python, FastAPI) mà backend gọi một chiều qua HTTP. Không truy cập cơ sở dữ liệu, không nhận dữ liệu cá nhân.
-Gọi mô hình ngôn ngữ để soạn bài học, sinh câu hỏi, tóm tắt và dịch di sản; riêng gợi ý di sản liên quan chỉ dùng scikit-learn
+Gọi mô hình ngôn ngữ để soạn bài học, viết lại một phần của bài, sinh câu hỏi, tóm tắt và dịch di sản; riêng gợi ý di sản liên quan chỉ dùng scikit-learn
 (TF-IDF và cosine), không gọi mô hình ngôn ngữ; giọng đọc tiếng Việt (`/v1/tts`) do chính dịch vụ này tự host bằng VieNeu-TTS, không gọi dịch vụ ngoài. Hai nhà cung cấp mô hình ngôn ngữ, chọn bằng `AI_PROVIDER`:
 
 | `AI_PROVIDER` | Mô hình mặc định | Chi phí | Ghi chú |
@@ -12,12 +12,22 @@ Gọi mô hình ngôn ngữ để soạn bài học, sinh câu hỏi, tóm tắt
 | API | Việc | Mô hình | Mức suy nghĩ |
 |---|---|---|---|
 | `POST /v1/compose-lesson` | Soạn nội dung bài học tiếng Việt đúng cấp 1, 2, 3 của lớp | có | medium |
+| `POST /v1/rewrite-section` | Viết lại riêng một phần của bài (bước câu chuyện, chú thích hình, bài đọc, mốc thời gian, câu hỏi gợi suy nghĩ) theo giới hạn từng loại, không đổi năm, không thêm số lạ | có | low |
 | `POST /v1/generate-questions` | Sinh câu hỏi 8 dạng theo cấp, độ khó | có | medium |
 | `POST /v1/summarize-heritage` | Tóm tắt tiếng Việt (bản ngắn để nghe, bản chi tiết để đọc) | có | low |
 | `POST /v1/translate-heritage` | Dịch sang `en`, `ko`, `zh-Hans`, `ja`, có bảng thuật ngữ tên riêng | có | low |
 | `POST /v1/rank-related` | Xếp hạng di sản liên quan | không | - |
 | `POST /v1/tts` | Đọc chữ tiếng Việt thành MP3 bằng giọng "Mai Anh" tự host (xem mục Giọng đọc tiếng Việt) | không (VieNeu-TTS) | - |
 | `GET /health` | Kiểm tra sức khỏe, gồm trạng thái giọng đọc `tts` (không cần khóa) | - | - |
+
+`POST /v1/compose-lesson` nhận thêm `teacherNote` (không bắt buộc, tối đa 500 ký tự): yêu cầu của giáo viên về trọng tâm, cách kể, mức độ từ ngữ, ví dụ.
+Prompt đặt lời đó vào khối `<yeu_cau_cua_giao_vien>` (rỗng thì không có khối); mô hình làm theo miễn không trái khung cấp, khoảng số từ, cấu trúc JSON
+và không thêm dữ kiện ngoài tư liệu, yêu cầu ngoài bài học thì bỏ qua.
+
+`POST /v1/rewrite-section` nhận `kind` (`STORY`, `IMAGE`, `READING`, `MILESTONE`, `REFLECTION`; không có đoạn trích tư liệu vì phải nguyên văn), `currentText`,
+`title`, `year` (chỉ mốc thời gian), `teacherNote`, `lessonContent`, `heritages` và trả `{ text, title, model, usage }`. Bộ kiểm: giới hạn số câu và số từ
+theo loại phần, tiếng Việt có dấu, văn bản thuần, mọi số 3-4 chữ số trong chữ mới phải có trong chữ cũ, nội dung bài hoặc tư liệu, mốc thời gian không đổi năm;
+không đạt thì gọi lại một lần kèm góp ý như soạn bài.
 
 Hợp đồng chi tiết nằm ở phía backend (`docs/bai-hoc-theo-cap.md`, `docs/ngan-hang-cau-hoi.md`, `docs/da-ngon-ngu.md`, `docs/thong-ke-goi-y.md`).
 
@@ -28,7 +38,7 @@ app/
   main.py, asgi.py      tạo ứng dụng, kiểm khóa nội bộ, mã tương quan, log JSON
   serve.py              điểm chạy dưới IIS trên máy demo (cổng lấy từ ASPNETCORE_PORT) và trong container (AI_HOST, AI_PORT)
   config.py             cấu hình (pydantic-settings), đọc .env
-  api/routes.py         sáu API và /health
+  api/routes.py         bảy API và /health
   giong_doc/            giọng đọc tiếng Việt: chuẩn hóa chữ, chia mẩu, ghép âm thanh và MP3, nạp VieNeu-TTS, động cơ mỗi lúc một yêu cầu
   schemas/              kiểu yêu cầu, kết quả (JSON camelCase, khớp backend)
   prompts/              prompt tiếng Việt, lược đồ JSON, bảng thuật ngữ tên riêng

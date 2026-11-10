@@ -7,12 +7,13 @@ import pytest
 from app.llm.client import AnthropicLlm
 
 from .conftest import FakeLlm, ok, truncated
-from .factories import compose_request, questions_request, translate_request
+from .factories import compose_request, questions_request, rewrite_request, translate_request
 from .test_anthropic_client import REQ, fake_client, message, response_of
 from .test_heritage import summarize_request
 
 CASES = {
     "compose-lesson": compose_request(2),
+    "rewrite-section": rewrite_request(2, "READING", "Hoàng thành Thăng Long là kinh đô của nước Đại Việt suốt nhiều thế kỷ."),
     "generate-questions": questions_request(2, ["SINGLE_CHOICE"], count=2),
     "summarize-heritage": summarize_request(),
     "translate-heritage": translate_request("ko"),

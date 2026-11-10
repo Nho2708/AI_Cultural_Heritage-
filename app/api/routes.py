@@ -1,4 +1,4 @@
-"""Sáu API của dịch vụ AI (năm API mô hình/gợi ý và giọng đọc) và kiểm tra sức khỏe."""
+"""Bảy API của dịch vụ AI (năm API dùng mô hình, gợi ý và giọng đọc) và kiểm tra sức khỏe."""
 from __future__ import annotations
 
 from fastapi import APIRouter, Request
@@ -8,12 +8,12 @@ from ..errors import InvalidInput, ServiceError
 from ..giong_doc.dong_co import GiongDocKhongSan, KhongCoChuDoc
 from ..recommender.rank import rank_related
 from ..schemas.heritage import SummarizeRequest, SummarizeResponse, TranslateRequest, TranslateResponse
-from ..schemas.lesson import ComposeRequest, ComposeResponse
+from ..schemas.lesson import ComposeRequest, ComposeResponse, RewriteSectionRequest, RewriteSectionResponse
 from ..schemas.questions import QuestionsRequest, QuestionsResponse
 from ..schemas.recommend import RankRequest, RankResponse
 from ..schemas.tts import TtsRequest
 from ..services.heritage import summarize_heritage, translate_heritage
-from ..services.lesson import compose_lesson
+from ..services.lesson import compose_lesson, rewrite_section
 from ..services.questions import generate_questions
 
 router = APIRouter()
@@ -32,6 +32,11 @@ async def health(request: Request) -> dict:
 @router.post("/v1/compose-lesson", response_model=ComposeResponse, tags=["ai"])
 async def compose_lesson_endpoint(body: ComposeRequest, request: Request) -> ComposeResponse:
     return await compose_lesson(body, request.app.state.llm, request.app.state.settings)
+
+
+@router.post("/v1/rewrite-section", response_model=RewriteSectionResponse, tags=["ai"])
+async def rewrite_section_endpoint(body: RewriteSectionRequest, request: Request) -> RewriteSectionResponse:
+    return await rewrite_section(body, request.app.state.llm, request.app.state.settings)
 
 
 @router.post("/v1/generate-questions", response_model=QuestionsResponse, tags=["ai"])
