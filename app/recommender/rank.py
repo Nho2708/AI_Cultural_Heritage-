@@ -95,6 +95,35 @@ def reason_of(factors: list[str], reference_name: str | None) -> str:
     return f"{first} với {reference_name}" if reference_name and reference_name.strip() else first
 
 
+def _reference_matches(
+    candidate: HeritageFeatures,
+    references: list,
+    similarities,
+    candidate_index: int,
+) -> list[tuple[float, list[str], str | None]]:
+    """Return valid weighted matches for one candidate."""
+    matches = []
+
+    for reference_index, reference in enumerate(references):
+        similarity = (
+            float(similarities[candidate_index, reference_index])
+            if similarities is not None
+            else 0.0
+        )
+        score, factors = compare(candidate, reference.heritage, similarity)
+        if not factors:
+            continue
+
+        matches.append((
+            score * reference.weight,
+            factors,
+            reference.heritage.name,
+        ))
+
+    matches.sort(key=lambda item: item[0], reverse=True)
+    return matches
+
+
 def rank_related(req: RankRequest) -> list[Related]:
     references = [r for r in req.references if r.weight > 0]
     reference_ids = {r.heritage.id for r in references}
@@ -103,20 +132,30 @@ def rank_related(req: RankRequest) -> list[Related]:
         return []
 
     ref_features = [r.heritage for r in references]
-    sims = _text_similarities(ref_features, candidates)
+    similarities = _text_similarities(ref_features, candidates)
 
     results: list[Related] = []
-    for ci, candidate in enumerate(candidates):
-        best: tuple[float, list[str], str | None] | None = None
-        for ri, ref in enumerate(references):
-            sim = float(sims[ci, ri]) if sims is not None else 0.0
-            score, factors = compare(candidate, ref.heritage, sim)
-            if not factors:
-                continue
-            weighted = score * ref.weight
-            if best is None or weighted > best[0]:
-                best = (weighted, factors, ref.heritage.name)
-        if best is not None:
-            results.append(Related(heritage_id=candidate.id, score=round(best[0], 4), reason=reason_of(best[1], best[2])))
+    for candidate_index, candidate in enumerate(candidates):
+        matches = _reference_matches(
+            candidate, references, similarities, candidate_index
+        )
+        if matches:
+            best_score, factors, reference_name = matches[0]
+            other_scores = [match[0] for match in matches[1:]]
+            support_bonus = (
+                0.2 * sum(other_scores) / len(other_scores)
+                if other_scores
+                else 0.0
+            )
+            combined_score = best_score + support_bonus
+
+            results.append(
+                Related(
+                    heritage_id=candidate.id,
+                    score=round(combined_score, 4),
+                    reason=reason_of(factors, reference_name),
+                )
+            )
+
     results.sort(key=lambda r: (-r.score, r.heritage_id))
     return results
